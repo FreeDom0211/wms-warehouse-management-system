@@ -1,0 +1,111 @@
+﻿﻿<div class="page-container">
+    <div class="layui-card">
+        <div class="layui-card-header">
+            <span>角色管理</span>
+            <button class="layui-btn layui-btn-sm" id="addBtn">添加角色</button>
+        </div>
+        <div class="layui-card-body">
+            <table class="layui-table" id="roleTable" lay-filter="roleTable"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initRoleManage = function() {
+    layui.use(['table', 'layer', 'form'], function(){
+        var table = layui.table;
+        var layer = layui.layer;
+        var form = layui.form;
+
+        table.render({
+            elem: '#roleTable',
+            url: '/api/role',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            page: true,
+            cols: [[
+                {field:'id', title:'ID', width:80},
+                {field:'roleCode', title:'角色编码', width:120},
+                {field:'roleName', title:'角色名称', width:120},
+                {field:'description', title:'描述', width:200},
+                {field:'createTime', title:'创建时间', width:180},
+                {title:'操作', width:100, toolbar:'#roleBar'}
+            ]]
+        });
+
+        table.on('tool(roleTable)', function(obj){
+            var data = obj.data;
+            if(obj.event === 'edit'){
+                layer.open({
+                    title: '编辑角色',
+                    type: 1,
+                    area: ['400px', '250px'],
+                    content: `
+                        <div class="layui-form" style="padding:20px;">
+                            <div class="layui-form-item">
+                                <label>角色名称</label>
+                                <input type="text" name="roleName" value="${data.roleName}" class="layui-input">
+                            </div>
+                            <div class="layui-form-item">
+                                <label>描述</label>
+                                <input type="text" name="description" value="${data.description}" class="layui-input">
+                            </div>
+                        </div>
+                    `,
+                    btn: ['保存', '取消'],
+                    yes: function(index){
+                        apiPut('/role/' + data.id, {
+                            roleName: document.querySelector('input[name="roleName"]').value,
+                            description: document.querySelector('input[name="description"]').value
+                        }).then(res => {
+                            layer.msg('修改成功');
+                            layer.close(index);
+                            table.reload('roleTable');
+                        });
+                    }
+                });
+            }
+        });
+
+        document.getElementById('addBtn').onclick = function(){
+            layer.open({
+                title: '添加角色',
+                type: 1,
+                area: ['400px', '300px'],
+                content: `
+                    <div class="layui-form" style="padding:20px;">
+                        <div class="layui-form-item">
+                            <label>角色编码</label>
+                            <input type="text" name="roleCode" class="layui-input">
+                        </div>
+                        <div class="layui-form-item">
+                            <label>角色名称</label>
+                            <input type="text" name="roleName" class="layui-input">
+                        </div>
+                        <div class="layui-form-item">
+                            <label>描述</label>
+                            <input type="text" name="description" class="layui-input">
+                        </div>
+                    </div>
+                `,
+                btn: ['添加', '取消'],
+                yes: function(index){
+                    apiPost('/role', {
+                        roleCode: document.querySelector('input[name="roleCode"]').value,
+                        roleName: document.querySelector('input[name="roleName"]').value,
+                        description: document.querySelector('input[name="description"]').value
+                    }).then(res => {
+                        layer.msg('添加成功');
+                        layer.close(index);
+                        table.reload('roleTable');
+                    });
+                }
+            });
+        };
+    });
+}
+</script>
+<script type="text/html" id="roleBar">
+    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+</script>

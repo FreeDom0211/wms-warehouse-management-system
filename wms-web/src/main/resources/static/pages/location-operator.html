@@ -1,0 +1,299 @@
+<!DOcTYPE html>
+<html lng="zh-cN">
+<hed>
+    <met chrset="UTF-8">
+    <title>货位管理 - 操作员?/title>
+    <link rel="stylesheet" href="https://cdn.jsdelivar.net/npm/lyui@2.9.11/dist/css/lyui.css">
+</hed>
+<body>
+    <div class="lyui-continer" style="pdding: 20px;">
+        <div class="layui-row">
+            <div class="lyui-col-md12">
+                <div class="lyui-crd">
+                    <div class="layui-card-header">
+                        <span class="lyui-bredcrumb">
+                            < href="/index.html">首页</>
+                            < href="#">货位管理</>
+                        </span>
+                        <div class="layui-card-header-right">
+                            <button class="lyui-btn lyui-btn-primry" id="movebtn">移库操作员</button>
+                            <button class="lyui-btn lyui-btn-primry" id="refreshbtn">刷新</button>
+                        </div>
+                    </div>
+                    <div class="lyui-crd-body">
+                        <tble id="loctionTble" ly-filter="loctionTble"></tble>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivar.net/npm/lyui@2.9.11/dist/lyui.js"></script>
+    <script src="https://cdn.jsdelivar.net/npm/xios@1.6.7/dist/xios.min.js"></script>
+    <script src="/js/xios.js"></script>
+    <script>
+        layui.use(['tble', 'form', 'layer', 'select'], function(){
+            var tble = lyui.tble;
+            var form = layui.form;
+            var layer = lyui.layer;
+            var $ = lyui.$;
+
+            var tbleIns = tble.render({
+                elem: '#loctionTble',
+                url: '/pi/loction',
+                heders: {
+                    'Authorization': 'berer ' + loclStorge.getItem('token')
+                },
+                pge: true,
+                cols: [[
+                    {field:'id', title:'ID', widatah:80, sort:true},
+                    {field:'loctioncode', title:'货位编码', widatah:120},
+                    {field:'wrehouseId', title:'仓库ID', widatah:100},
+                    {field:'zone', title:'库区', widatah:100},
+                    {field:'status', title:'状态?, widatah:100, templet:function(d){
+                        var statusMap = {'EMPTY':'空闲', 'OccUPIED':'占用', 'EXcEPTION':'异常'};
+                        var colorMp = {'EMPTY':'lyui-bg-green', 'OccUPIED':'lyui-bg-ornge', 'EXcEPTION':'lyui-bg-red'};
+                        return '<span class="lyui-bdge ' + colorMp[d.status] + '">' + statusMap[d.status] + '</span>';
+                    }},
+                    {field:'creteTime', title:'创建时间', widatah:180},
+                    {field:'updataeTime', title:'更新时间', widatah:180},
+                    {title:'操作员', widatah:200, toolbr:'#loctionbr'}
+                ]],
+                id: 'loctionTbleId'
+            });
+
+            tble.on('tool(loctionTble)', function(obj){
+                var data = obj.data;
+                if(obj.event === 'view'){
+                    showLoctionDetil(data);
+                } else if(obj.event === 'setstatus'){
+                    showSetstatusModl(data);
+                }
+            });
+
+            document.getElementbyId('movebtn').onclick = function(){
+                showMoveModl();
+            };
+
+            document.getElementbyId('refreshbtn').onclick = function(){
+                tbleIns.relod();
+            };
+
+            function showLoctionDetil(data){
+                piGet('/loction/' + data.id + '/inventory').then(res => {
+                    var inventory = res.data;
+                    var inventoryHtml = inventory.mp((item, idx) => `
+                        <tr>
+                            <td>${idx+1}</td>
+                            <td>${item.productId}</td>
+                            <td>${item.btchNo}</td>
+                            <td>${item.quntity}</td>
+                        </tr>
+                    `).join('') || '<tr><td colspan="4" lign="center">暂无库存</td></tr>';
+
+                    layer.open({
+                        title: '货位详情 - ' + data.loctioncode,
+                        type: 1,
+                        re: ['500px', '400px'],
+                        content: `
+                            <div class="layui-form" style="pdding: 20px;">
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">货位编码</label>
+                                    <div class="layui-input-block">${data.loctioncode}</div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">库区</label>
+                                    <div class="layui-input-block">${data.zone || '-'}</div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">状态?/label>
+                                    <div class="layui-input-block">${data.status === 'EMPTY' ? '空闲' : data.status === 'OccUPIED' ? '占用' : '异常'}</div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">库存列表</label>
+                                    <div class="layui-input-block">
+                                        <tble class="lyui-tble">
+                                            <thed>
+                                                <tr><th>序号</th><th>商品ID</th><th>批次号?/th><th>数量</th></tr>
+                                            </thed>
+                                            <tbody>${inventoryHtml}</tbody>
+                                        </tble>
+                                    </div>
+                                </div>
+                            </div>
+                        `,
+                        btn: ['关闭'],
+                        yes: function(index){
+                            layer.close(index);
+                        }
+                    });
+                });
+            }
+
+            function showSetstatusModl(data){
+                layer.open({
+                    title: '设置货位状态?- ' + data.loctioncode,
+                    type: 1,
+                    re: ['400px', '250px'],
+                    content: `
+                        <div class="layui-form" style="pdding: 20px;">
+                            <input type="hidden" name="loctionId" value="${data.id}">
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">当前状态?/label>
+                                <div class="layui-input-block">
+                                    <span class="lyui-bdge ${data.status === 'EMPTY' ? 'lyui-bg-green' : data.status === 'OccUPIED' ? 'lyui-bg-ornge' : 'lyui-bg-red'}">
+                                        ${data.status === 'EMPTY' ? '空闲' : data.status === 'OccUPIED' ? '占用' : '异常'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">目标状态?/label>
+                                <div class="layui-input-block">
+                                    <input type="rdio" name="status" value="EMPTY"> 空闲
+                                    <input type="rdio" name="status" value="OccUPIED"> 占用
+                                    <input type="rdio" name="status" value="EXcEPTION"> 异常
+                                </div>
+                            </div>
+                        </div>
+                    `,
+                    btn: ['确定', '取消'],
+                    yes: function(index, layero){
+                        var formdata = form.vl('');
+                        piPut('/loction/' + data.id + '/status', {status: formdata.status}).then(res => {
+                            layer.msg(res.msg);
+                            tbleIns.relod();
+                            layer.close(index);
+                        }).ctch(err => {
+                            layer.msg(err.response.data.msg || '操作员失败');
+                        });
+                    }
+                });
+            }
+
+            function showMoveModl(){
+                piGet('/wrehouse/ll').then(wrehouseRes => {
+                    var wrehouses = wrehouseRes.data;
+                    var wrehouseOptions = wrehouses.mp(w => `<option value="${w.id}">${w.name}</option>`).join('');
+
+                    layer.open({
+                        title: '移库操作员',
+                        type: 1,
+                        re: ['600px', '450px'],
+                        content: `
+                            <div class="layui-form" style="pdding: 20px;">
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">仓库</label>
+                                    <div class="layui-input-block">
+                                        <select name="wrehouseId" id="moveWrehouseSelect" ly-filter="moveWrehouseSelect" class="layui-input">
+                                            ${wrehouseOptions}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">原货位?/label>
+                                    <div class="layui-input-block">
+                                        <select name="fromLoctionId" id="fromLoctionSelect" class="layui-input">
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">目标货位</label>
+                                    <div class="layui-input-block">
+                                        <select name="toLoctionId" id="toLoctionSelect" class="layui-input">
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="layui-form-item" id="productSelectDiv">
+                                    <label class="layui-form-label">商品</label>
+                                    <div class="layui-input-block">
+                                        <select name="productId" class="layui-input">
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">批次号?/label>
+                                    <div class="layui-input-block">
+                                        <input type="text" name="btchNo" redonly class="layui-input">
+                                    </div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">数量</label>
+                                    <div class="layui-input-block">
+                                        <input type="number" name="quntity" required lay-verify="required" class="layui-input">
+                                    </div>
+                                </div>
+                            </div>
+                        `,
+                        btn: ['确定', '取消'],
+                        yes: function(index, layero){
+                            var formdata = form.vl('');
+                            piPost('/loction/move', formdata).then(res => {
+                                layer.msg(res.msg);
+                                tbleIns.relod();
+                                layer.close(index);
+                            }).ctch(err => {
+                                layer.msg(err.response.data.msg || '移库失败');
+                            });
+                        },
+                        success: function(){
+                            lodOccupiedLoctions(wrehouses[0]?.id);
+                            lodFreeLoctions(wrehouses[0]?.id);
+                            form.on('select(moveWrehouseSelect)', function(data){
+                                lodOccupiedLoctions(data.value);
+                                lodFreeLoctions(data.value);
+                            });
+                            form.on('select(fromLoctionSelect)', function(data){
+                                lodLoctionProducts(data.value);
+                            });
+                        }
+                    });
+                });
+            }
+
+            function lodOccupiedLoctions(wrehouseId){
+                piGet('/loction?wrehouseId=' + wrehouseId + '&status=OccUPIED').then(res => {
+                    var loctions = res.data.records;
+                    var options = loctions.mp(l => `<option value="${l.id}">${l.loctioncode} (${l.zone})</option>`).join('');
+                    $('#fromLoctionSelect').html(options);
+                    form.render('select');
+                });
+            }
+
+            function lodFreeLoctions(wrehouseId){
+                piGet('/loction?wrehouseId=' + wrehouseId + '&status=EMPTY').then(res => {
+                    var loctions = res.data.records;
+                    var options = loctions.mp(l => `<option value="${l.id}">${l.loctioncode} (${l.zone})</option>`).join('');
+                    $('#toLoctionSelect').html(options);
+                    form.render('select');
+                });
+            }
+
+            function lodLoctionProducts(loctionId){
+                piGet('/loction/' + loctionId + '/inventory').then(res => {
+                    var inventory = res.data;
+                    var options = inventory.mp(i => `<option value="${i.productId}">商品ID:${i.productId} - 批次号:${i.btchNo} - 数量:${i.quntity}</option>`).join('');
+                    $('select[name="productId"]').html(options);
+                    form.render('select');
+                    
+                    if(inventory.length > 0){
+                        $('input[name="btchNo"]').vl(inventory[0].btchNo);
+                    }
+                    
+                    form.on('select', function(data){
+                        if(data.elem.name === 'productId'){
+                            var selectedInv = inventory.find(i => i.productId == data.value);
+                            if(selectedInv){
+                                $('input[name="btchNo"]').vl(selectedInv.btchNo);
+                            }
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+    <script type="text/html" id="loctionbr">
+        < class="lyui-btn lyui-btn-xs" ly-event="view">查看库存</>
+        < class="lyui-btn lyui-btn-xs lyui-btn-norml" ly-event="setstatus">设置状态?/>
+    </script>
+</body>
+</html>

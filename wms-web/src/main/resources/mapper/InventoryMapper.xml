@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jd.wms.dao.mapper.InventoryMapper">
+
+    <select id="selectByProductAndLocation" resultType="com.jd.wms.dao.entity.Inventory">
+        SELECT * FROM inventory WHERE product_id = #{productId} AND location_id = #{locationId}
+    </select>
+
+    <select id="selectLowStockProducts" resultType="java.util.Map">
+        SELECT i.product_id AS productId, p.name AS productName,
+               p.product_code AS productCode, SUM(i.quantity) AS currentQuantity,
+               #{threshold} AS minStock, 1000 AS maxStock,
+               (CASE WHEN SUM(i.quantity) &lt; #{threshold} THEN #{threshold} - SUM(i.quantity) ELSE 0 END) AS shortage
+        FROM inventory i
+        LEFT JOIN product p ON i.product_id = p.id
+        GROUP BY i.product_id, p.name, p.product_code
+        HAVING SUM(i.quantity) &lt; #{threshold}
+        ORDER BY currentQuantity ASC
+    </select>
+
+</mapper>

@@ -1,0 +1,160 @@
+<div class="page-container">
+    <div class="layui-row layui-col-space20">
+        <div class="layui-col-md2">
+            <div class="layui-card">
+                <div class="layui-card-body" style="text-align:center;">
+                    <div class="stat-number" id="totalQty">0</div>
+                    <div style="color:#666;">总库存量</div>
+                </div>
+            </div>
+        </div>
+        <div class="layui-col-md2">
+            <div class="layui-card">
+                <div class="layui-card-body" style="text-align:center;">
+                    <div class="stat-number" id="productTypes">0</div>
+                    <div style="color:#666;">商品种类</div>
+                </div>
+            </div>
+        </div>
+        <div class="layui-col-md2">
+            <div class="layui-card">
+                <div class="layui-card-body" style="text-align:center;">
+                    <div class="stat-number" id="warehouseCount">0</div>
+                    <div style="color:#666;">仓库数量</div>
+                </div>
+            </div>
+        </div>
+        <div class="layui-col-md2">
+            <div class="layui-card">
+                <div class="layui-card-body" style="text-align:center;">
+                    <div class="stat-number" id="occupiedLocations">0</div>
+                    <div style="color:#666;">占用货位</div>
+                </div>
+            </div>
+        </div>
+        <div class="layui-col-md2">
+            <div class="layui-card">
+                <div class="layui-card-body" style="text-align:center;">
+                    <div class="stat-number" id="emptyLocations">0</div>
+                    <div style="color:#666;">空闲货位</div>
+                </div>
+            </div>
+        </div>
+        <div class="layui-col-md2">
+            <div class="layui-card">
+                <div class="layui-card-body" style="text-align:center;">
+                    <div class="stat-number" id="occupancyRate">0%</div>
+                    <div style="color:#666;">利用率</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="layui-row layui-col-space20">
+        <div class="layui-col-md6">
+            <div class="layui-card">
+                <div class="layui-card-header">各仓库库存分布</div>
+                <div class="layui-card-body">
+                    <div id="warehouseChart" style="height:300px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="layui-col-md6">
+            <div class="layui-card">
+                <div class="layui-card-header">库存趋势</div>
+                <div class="layui-card-body">
+                    <div id="trendChart" style="height:300px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="layui-card">
+        <div class="layui-card-header">低库存预警</div>
+        <div class="layui-card-body">
+            <table class="layui-table" id="lowStockTable"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initInventoryMonitor = function() {
+    layui.use(['table'], function(){
+        var table = layui.table;
+
+        loadOverview();
+        initCharts();
+        initLowStockTable();
+    });
+}
+
+function loadOverview(){
+    apiGet('/manager/inventory/overview').then(res => {
+        var data = res.data;
+        document.getElementById('totalQty').textContent = data.totalQuantity || 0;
+        document.getElementById('productTypes').textContent = data.productTypes || 0;
+        document.getElementById('warehouseCount').textContent = data.warehouseCount || 0;
+        document.getElementById('occupiedLocations').textContent = data.occupiedLocations || 0;
+        document.getElementById('emptyLocations').textContent = data.emptyLocations || 0;
+        document.getElementById('occupancyRate').textContent = (data.occupancyRate || 0) + '%';
+    });
+}
+
+function initCharts(){
+    var warehouseChart = echarts.init(document.getElementById('warehouseChart'));
+    var trendChart = echarts.init(document.getElementById('trendChart'));
+
+    apiGet('/manager/inventory/by-warehouse').then(res => {
+        var data = res.data || [];
+        warehouseChart.setOption({
+            tooltip: { trigger: 'item' },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                data: data.map(d => ({name: d.warehouseName, value: d.totalQuantity}))
+            }]
+        });
+    });
+
+    apiGet('/manager/inventory/trend').then(res => {
+        var data = res.data;
+        trendChart.setOption({
+            tooltip: { trigger: 'axis' },
+            xAxis: { type: 'category', data: data.labels },
+            yAxis: { type: 'value' },
+            series: [{
+                type: 'line',
+                smooth: true,
+                data: data.values,
+                areaStyle: { color: '#e3f2fd' }
+            }]
+        });
+    });
+
+    window.addEventListener('resize', function(){
+        warehouseChart.resize();
+        trendChart.resize();
+    });
+}
+
+function initLowStockTable(){
+    layui.use(['table'], function(){
+        var table = layui.table;
+        table.render({
+            elem: '#lowStockTable',
+            url: '/api/manager/inventory/low-stock',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            page: true,
+            cols: [[
+                {field:'productCode', title:'商品编码', width:120},
+                {field:'productName', title:'商品名称', width:180},
+                {field:'currentQuantity', title:'当前库存', width:100},
+                {field:'minStock', title:'最低阈值', width:100},
+                {field:'shortage', title:'缺口', width:80}
+            ]]
+        });
+    });
+}
+</script>

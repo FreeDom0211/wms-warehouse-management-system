@@ -1,0 +1,158 @@
+<div class="page-container">
+    <div class="layui-card">
+        <div class="layui-card-header">
+            <span>用户管理</span>
+            <button class="layui-btn layui-btn-sm" id="addbtn">添加用户</button>
+        </div>
+        <div class="layui-card-body">
+            <table class="layui-table" id="userTable" lay-filter="userTable"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initUserManage = function() {
+    layui.use(['table', 'layer', 'form'], function(){
+        var table = layui.table;
+        var layer = layui.layer;
+        var form = layui.form;
+
+        table.render({
+            elem: '#userTable',
+            url: '/api/user',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            page: true,
+            cols: [[
+                {field:'id', title:'ID', width:80},
+                {field:'workNo', title:'工号', width:120},
+                {field:'name', title:'姓名', width:100},
+                {field:'phone', title:'手机', width:130},
+                {field:'email', title:'邮箱', width:150},
+                {field:'roleCode', title:'角色', width:100},
+                {field:'status', title:'状态', width:80},
+                {field:'createTime', title:'创建时间', width:180},
+                {title:'操作', width:200, toolbar:'#userBar'}
+            ]]
+        });
+
+        table.on('tool(userTable)', function(obj){
+            var data = obj.data;
+            if(obj.event === 'edit'){
+                layer.open({
+                    title: '编辑用户',
+                    type: 1,
+                    area: ['450px', '400px'],
+                    content: `
+                        <div class="layui-form" style="padding:20px;">
+                            <div class="layui-form-item">
+                                <label>姓名</label>
+                                <input type="text" name="name" value="${data.name}" class="layui-input">
+                            </div>
+                            <div class="layui-form-item">
+                                <label>手机</label>
+                                <input type="text" name="phone" value="${data.phone}" class="layui-input">
+                            </div>
+                            <div class="layui-form-item">
+                                <label>邮箱</label>
+                                <input type="text" name="email" value="${data.email}" class="layui-input">
+                            </div>
+                            <div class="layui-form-item">
+                                <label>角色</label>
+                                <select name="roleCode" class="layui-input">
+                                    <option value="OPERATOR" ${data.roleCode === 'OPERATOR' ? 'selected' : ''}>操作员</option>
+                                    <option value="MANAGER" ${data.roleCode === 'MANAGER' ? 'selected' : ''}>管理员</option>
+                                    <option value="ADMINISTRATOR" ${data.roleCode === 'ADMINISTRATOR' ? 'selected' : ''}>仓储主管</option>
+                                </select>
+                            </div>
+                        </div>
+                    `,
+                    btn: ['保存', '取消'],
+                    yes: function(index){
+                        apiPut('/user/' + data.id, {
+                            name: document.querySelector('input[name="name"]').value,
+                            phone: document.querySelector('input[name="phone"]').value,
+                            email: document.querySelector('input[name="email"]').value,
+                            roleCode: document.querySelector('select[name="roleCode"]').value
+                        }).then(res => {
+                            layer.msg('修改成功');
+                            layer.close(index);
+                            table.reload('userTable');
+                        });
+                    }
+                });
+            } else if(obj.event === 'resetPwd'){
+                layer.prompt({title: '重置密码'}, function(pwd){
+                    apiPut('/user/' + data.id + '/reset-password', {newPassword: pwd}).then(res => {
+                        layer.msg('密码已重置');
+                    });
+                });
+            } else if(obj.event === 'toggleStatus'){
+                var newStatus = data.status === 1 ? 0 : 1;
+                apiPut('/user/' + data.id + '/status', {status: newStatus}).then(res => {
+                    layer.msg('状态已更新');
+                    table.reload('userTable');
+                });
+            }
+        });
+
+        document.getElementById('addbtn').onclick = function(){
+            layer.open({
+                title: '添加用户',
+                type: 1,
+                area: ['450px', '450px'],
+                content: `
+                    <div class="layui-form" style="padding:20px;">
+                        <div class="layui-form-item">
+                            <label>工号</label>
+                            <input type="text" name="workNo" class="layui-input">
+                        </div>
+                        <div class="layui-form-item">
+                            <label>姓名</label>
+                            <input type="text" name="name" class="layui-input">
+                        </div>
+                        <div class="layui-form-item">
+                            <label>密码</label>
+                            <input type="password" name="password" class="layui-input">
+                        </div>
+                        <div class="layui-form-item">
+                            <label>手机</label>
+                            <input type="text" name="phone" class="layui-input">
+                        </div>
+                        <div class="layui-form-item">
+                            <label>角色</label>
+                            <select name="roleCode" class="layui-input">
+                                <option value="OPERATOR">操作员</option>
+                                <option value="MANAGER">管理员</option>
+                                <option value="ADMINISTRATOR">仓储主管</option>
+                            </select>
+                        </div>
+                    </div>
+                `,
+                btn: ['添加', '取消'],
+                yes: function(index){
+                    apiPost('/user', {
+                        workNo: document.querySelector('input[name="workNo"]').value,
+                        name: document.querySelector('input[name="name"]').value,
+                        password: document.querySelector('input[name="password"]').value,
+                        phone: document.querySelector('input[name="phone"]').value,
+                        roleCode: document.querySelector('select[name="roleCode"]').value
+                    }).then(res => {
+                        layer.msg('添加成功');
+                        layer.close(index);
+                        table.reload('userTable');
+                    });
+                }
+            });
+        };
+    });
+}
+</script>
+<script type="text/html" id="userBar">
+    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+    <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="resetPwd">重置密码</a>
+    <a class="layui-btn layui-btn-xs layui-btn-warning" lay-event="toggleStatus">
+        {{ d.status === 1 ? '禁用' : '启用' }}
+    </a>
+</script>

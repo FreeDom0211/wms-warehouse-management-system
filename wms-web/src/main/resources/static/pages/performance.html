@@ -1,0 +1,59 @@
+<div class="page-container">
+    <div class="layui-card">
+        <div class="layui-card-header">
+            <span>绩效管理</span>
+        </div>
+        <div class="layui-card-body">
+            <div style="margin-bottom:15px;">
+                <input type="text" id="startDate" class="layui-input" placeholder="开始日期" style="width:150px;display:inline-block;margin-right:10px;">
+                <input type="text" id="endDate" class="layui-input" placeholder="结束日期" style="width:150px;display:inline-block;margin-right:10px;">
+                <button class="layui-btn layui-btn-sm" onclick="queryPerformance()">查询</button>
+                <button class="layui-btn layui-btn-sm layui-btn-normal" onclick="exportExcel()">导出Excel</button>
+            </div>
+            <table class="layui-table" id="performanceTable"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initPerformance = function() {
+    layui.use(['table', 'layer'], function(){
+        var table = layui.table;
+        table.render({
+            elem: '#performanceTable',
+            url: '/api/manager/performance/list',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            page: true,
+            cols: [[
+                {field:'rank', title:'排名', width:80},
+                {field:'operatorName', title:'操作员', width:120},
+                {field:'workNo', title:'工号', width:100},
+                {field:'stockInCount', title:'入库次数', width:100},
+                {field:'stockOutCount', title:'出库次数', width:100},
+                {field:'checkCount', title:'盘点次数', width:100},
+                {field:'accuracy', title:'准确率', width:100},
+                {field:'avgProcessTime', title:'平均耗时(分钟)', width:120},
+                {field:'totalScore', title:'综合评分', width:100}
+            ]]
+        });
+    });
+}
+
+function queryPerformance(){
+    layui.use(['table'], function(){
+        var table = layui.table;
+        table.reload('performanceTable', {
+            where: {
+                startDate: document.getElementById('startDate').value,
+                endDate: document.getElementById('endDate').value
+            }
+        });
+    });
+}
+
+function exportExcel(){
+    window.location.href = '/api/manager/performance/export?startDate=&endDate=';
+}
+</script>

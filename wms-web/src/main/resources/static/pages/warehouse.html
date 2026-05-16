@@ -1,0 +1,132 @@
+<div class="page-container">
+    <div class="layui-card">
+        <div class="layui-card-header">
+            <span>仓库管理</span>
+            <button class="layui-btn layui-btn-sm" id="addBtn">添加仓库</button>
+        </div>
+        <div class="layui-card-body">
+            <table class="layui-table" id="warehouseTable" lay-filter="warehouseTable"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initWarehouseManage = function() {
+    layui.use(['table', 'layer', 'form'], function(){
+        var table = layui.table;
+        var layer = layui.layer;
+        var form = layui.form;
+
+        table.render({
+            elem: '#warehouseTable',
+            url: '/api/warehouse',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            page: true,
+            cols: [[
+                {field:'id', title:'ID', width:80},
+                {field:'warehouseCode', title:'仓库编码', width:120},
+                {field:'warehouseName', title:'仓库名称', width:150},
+                {field:'address', title:'地址', width:200},
+                {field:'status', title:'状态', width:100},
+                {field:'capacity', title:'容量', width:100},
+                {field:'usedCapacity', title:'已用容量', width:120},
+                {title:'操作', width:100, toolbar:'#warehouseBar'}
+            ]]
+        });
+
+        table.on('tool(warehouseTable)', function(obj){
+            if(obj.event === 'edit'){
+                layer.open({
+                    title: '编辑仓库',
+                    type: 1,
+                    area: ['400px', '350px'],
+                    content: `
+                        <div class="layui-form" style="padding:20px;">
+                            <div class="layui-form-item">
+                                <label>ID</label>
+                                <input type="text" name="id" value="${obj.data.id}" class="layui-input">
+                            </div>
+                            <div class="layui-form-item">
+                                <label>仓库编码</label>
+                                <input type="text" name="warehouseCode" value="${obj.data.warehouseCode}" class="layui-input">
+                            </div>
+                            <div class="layui-form-item">
+                                <label>仓库名称</label>
+                                <input type="text" name="warehouseName" value="${obj.data.warehouseName}" class="layui-input">
+                            </div>
+                            <div class="layui-form-item">
+                                <label>地址</label>
+                                <input type="text" name="address" value="${obj.data.address}" class="layui-input">
+                            </div>
+                            <div class="layui-form-item">
+                                <label>容量</label>
+                                <input type="number" name="capacity" value="${obj.data.capacity}" class="layui-input">
+                            </div>
+                        </div>
+                    `,
+                    btn: ['保存', '取消'],
+                    yes: function(index){
+                        apiPut('/warehouse/' + obj.data.id, {
+                            id: document.querySelector('input[name="id"]').value,
+                            warehouseCode: document.querySelector('input[name="warehouseCode"]').value,
+                            warehouseName: document.querySelector('input[name="warehouseName"]').value,
+                            address: document.querySelector('input[name="address"]').value,
+                            capacity: document.querySelector('input[name="capacity"]').value
+                        }).then(res => {
+                            layer.msg('修改成功');
+                            layer.close(index);
+                            table.reload('warehouseTable');
+                        });
+                    }
+                });
+            }
+        });
+
+        document.getElementById('addBtn').onclick = function(){
+            layer.open({
+                title: '添加仓库',
+                type: 1,
+                area: ['400px', '350px'],
+                content: `
+                    <div class="layui-form" style="padding:20px;">
+                        <div class="layui-form-item">
+                            <label>仓库编码</label>
+                            <input type="text" name="warehouseCode" class="layui-input">
+                        </div>
+                        <div class="layui-form-item">
+                            <label>仓库名称</label>
+                            <input type="text" name="warehouseName" class="layui-input">
+                        </div>
+                        <div class="layui-form-item">
+                            <label>地址</label>
+                            <input type="text" name="address" class="layui-input">
+                        </div>
+                        <div class="layui-form-item">
+                            <label>容量</label>
+                            <input type="number" name="capacity" class="layui-input">
+                        </div>
+                    </div>
+                `,
+                btn: ['添加', '取消'],
+                yes: function(index){
+                    apiPost('/warehouse', {
+                        warehouseCode: document.querySelector('input[name="warehouseCode"]').value,
+                        warehouseName: document.querySelector('input[name="warehouseName"]').value,
+                        address: document.querySelector('input[name="address"]').value,
+                        capacity: document.querySelector('input[name="capacity"]').value
+                    }).then(res => {
+                        layer.msg('添加成功');
+                        layer.close(index);
+                        table.reload('warehouseTable');
+                    });
+                }
+            });
+        };
+    });
+}
+</script>
+<script type="text/html" id="warehouseBar">
+    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+</script>

@@ -1,0 +1,119 @@
+<div class="page-container">
+    <div class="layui-row layui-col-space20">
+        <div class="layui-col-md4">
+            <div class="layui-card">
+                <div class="layui-card-header">待分配任务</div>
+                <div class="layui-card-body">
+                    <table class="layui-table" id="pendingTasks"></table>
+                </div>
+            </div>
+        </div>
+        <div class="layui-col-md4">
+            <div class="layui-card">
+                <div class="layui-card-header">进行中任务</div>
+                <div class="layui-card-body">
+                    <table class="layui-table" id="processingTasks"></table>
+                </div>
+            </div>
+        </div>
+        <div class="layui-col-md4">
+            <div class="layui-card">
+                <div class="layui-card-header">操作员列表</div>
+                <div class="layui-card-body">
+                    <table class="layui-table" id="operatorList"></table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initTaskSchedule = function() {
+    layui.use(['table', 'layer'], function(){
+        var table = layui.table;
+        var layer = layui.layer;
+
+        table.render({
+            elem: '#pendingTasks',
+            url: '/api/task/status/PENDING',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            cols: [[
+                {field:'id', title:'ID', width:60},
+                {field:'taskType', title:'类型', width:80},
+                {field:'relatedNo', title:'关联单号', width:120},
+                {title:'操作', width:80, toolbar:'#assignBar'}
+            ]]
+        });
+
+        table.render({
+            elem: '#processingTasks',
+            url: '/api/task/status/PROCESSING',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            cols: [[
+                {field:'id', title:'ID', width:60},
+                {field:'taskType', title:'类型', width:80},
+                {field:'operatorName', title:'操作员', width:100},
+                {field:'progress', title:'进度', width:80}
+            ]]
+        });
+
+        table.render({
+            elem: '#operatorList',
+            url: '/api/user/role/OPERATOR',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            cols: [[
+                {field:'id', title:'ID', width:60},
+                {field:'name', title:'姓名', width:100},
+                {field:'taskCount', title:'任务数', width:80}
+            ]]
+        });
+
+        table.on('tool(pendingTasks)', function(obj){
+            if(obj.event === 'assign'){
+                layer.open({
+                    title: '分配任务',
+                    type: 1,
+                    area: ['350px', '200px'],
+                    content: `
+                        <div class="layui-form" style="padding:20px;">
+                            <div class="layui-form-item">
+                                <label>选择操作员</label>
+                                <select id="assignOperator" class="layui-input"></select>
+                            </div>
+                            <div class="layui-form-item">
+                                <label>优先级</label>
+                                <select id="priority" class="layui-input">
+                                    <option value="HIGH">高</option>
+                                    <option value="MEDIUM">中</option>
+                                    <option value="LOW">低</option>
+                                </select>
+                            </div>
+                        </div>
+                    `,
+                    btn: ['确认分配', '取消'],
+                    yes: function(index){
+                        apiPut('/task/' + obj.data.id + '/assign', {
+                            operatorId: document.getElementById('assignOperator').value,
+                            priority: document.getElementById('priority').value
+                        }).then(res => {
+                            layer.msg('任务已分配');
+                            layer.close(index);
+                            table.reload('pendingTasks');
+                            table.reload('processingTasks');
+                        });
+                    }
+                });
+            }
+        });
+    });
+}
+</script>
+<script type="text/html" id="assignBar">
+    <a class="layui-btn layui-btn-xs" lay-event="assign">分配</a>
+</script>

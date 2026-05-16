@@ -1,0 +1,82 @@
+<div class="page-container">
+    <div class="layui-card">
+        <div class="layui-card-header">出库管理</div>
+        <div class="layui-card-body">
+            <div class="layui-form">
+                <div class="layui-form-item">
+                    <label>订单号</label>
+                    <input type="text" id="orderNo" class="layui-input" placeholder="请输入订单号">
+                    <button class="layui-btn" onclick="queryOrder()">查询订单</button>
+                </div>
+            </div>
+            <div id="orderDetail" style="display:none;">
+                <table class="layui-table" id="orderItems"></table>
+                <button class="layui-btn" onclick="createStockOut()">生成出库单</button>
+            </div>
+            <table class="layui-table" id="stockOutTable"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initStockOut = function() {
+    layui.use(['table', 'layer'], function(){
+        var table = layui.table;
+        table.render({
+            elem: '#stockOutTable',
+            url: '/api/stock-out/operator/3',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            page: true,
+            cols: [[
+                {field:'id', title:'ID', width:80},
+                {field:'stockOutNo', title:'出库单号', width:150},
+                {field:'orderNo', title:'订单号', width:150},
+                {field:'productName', title:'商品', width:180},
+                {field:'batchNo', title:'批次号', width:120},
+                {field:'locationCode', title:'货位', width:100},
+                {field:'quantity', title:'数量', width:80},
+                {field:'status', title:'状态', width:100},
+                {title:'操作', width:120, toolbar:'#stockOutBar'}
+            ]]
+        });
+
+        table.on('tool(stockOutTable)', function(obj){
+            if(obj.event === 'complete'){
+                apiPut('/stock-out/' + obj.data.id + '/complete').then(res => {
+                    layer.msg('出库完成');
+                    table.reload('stockOutTable');
+                });
+            }
+        });
+    });
+}
+
+function queryOrder(){
+    var orderNo = document.getElementById('orderNo').value;
+    apiGet('/stock-out/order-detail?orderNo=' + orderNo).then(res => {
+        document.getElementById('orderDetail').style.display = 'block';
+        layui.use(['table'], function(){
+            var table = layui.table;
+            table.render({
+                elem: '#orderItems',
+                data: res.data.items,
+                cols: [[
+                    {field:'productName', title:'商品名称', width:200},
+                    {field:'productCode', title:'商品编码', width:120},
+                    {field:'spec', title:'规格', width:100},
+                    {field:'quantity', title:'数量', width:80}
+                ]]
+            });
+        });
+    });
+}
+
+function createStockOut(){
+    layer.msg('出库单已创建');
+}
+</script>
+<script type="text/html" id="stockOutBar">
+    <a class="layui-btn layui-btn-xs" lay-event="complete">完成出库</a>
+</script>

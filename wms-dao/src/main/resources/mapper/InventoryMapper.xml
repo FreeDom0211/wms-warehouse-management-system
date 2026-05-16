@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jd.wms.dao.mapper.InventoryMapper">
+
+    <select id="selectInventoryByWarehouse" resultType="java.util.Map">
+        SELECT l.warehouse_id AS warehouseId, w.warehouse_name AS warehouseName,
+               SUM(i.quantity) AS totalQuantity, COUNT(DISTINCT i.product_id) AS productTypes
+        FROM inventory i
+        LEFT JOIN location l ON i.location_id = l.id
+        LEFT JOIN warehouse w ON l.warehouse_id = w.id
+        GROUP BY l.warehouse_id, w.warehouse_name
+        ORDER BY totalQuantity DESC
+    </select>
+
+    <select id="selectInventoryDetails" resultType="java.util.Map">
+        SELECT i.id, i.product_id AS productId, p.name AS productName,
+               p.product_code AS productCode, i.batch_no AS batchNo,
+               i.location_id AS locationId, l.location_code AS locationCode,
+               l.zone, i.quantity
+        FROM inventory i
+        LEFT JOIN location l ON i.location_id = l.id
+        LEFT JOIN product p ON i.product_id = p.id
+        <where>
+            <if test="warehouseId != null">
+                AND l.warehouse_id = #{warehouseId}
+            </if>
+            <if test="productId != null">
+                AND i.product_id = #{productId}
+            </if>
+        </where>
+        ORDER BY i.create_time DESC
+    </select>
+
+    <select id="selectTopProducts" resultType="java.util.Map">
+        SELECT i.product_id AS productId, p.name AS productName,
+               p.product_code AS productCode, SUM(i.quantity) AS totalQuantity
+        FROM inventory i
+        LEFT JOIN product p ON i.product_id = p.id
+        GROUP BY i.product_id, p.name, p.product_code
+        ORDER BY totalQuantity DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectLowStockProducts" resultType="java.util.Map">
+        SELECT i.product_id AS productId, p.name AS productName,
+               p.product_code AS productCode, SUM(i.quantity) AS currentQuantity,
+               #{threshold} AS minStock, 1000 AS maxStock,
+               (CASE WHEN SUM(i.quantity) &lt; #{threshold} THEN #{threshold} - SUM(i.quantity) ELSE 0 END) AS shortage
+        FROM inventory i
+        LEFT JOIN product p ON i.product_id = p.id
+        GROUP BY i.product_id, p.name, p.product_code
+        HAVING SUM(i.quantity) &lt; #{threshold}
+        ORDER BY currentQuantity ASC
+    </select>
+
+</mapper>

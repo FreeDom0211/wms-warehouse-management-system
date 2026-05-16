@@ -1,0 +1,111 @@
+<div class="page-container">
+    <div class="layui-card">
+        <div class="layui-card-header">货位管理</div>
+        <div class="layui-card-body">
+            <div class="layui-row">
+                <div class="layui-col-md3">
+                    <select id="zoneFilter" class="layui-input">
+                        <option value="">全部区域</option>
+                        <option value="A">A区</option>
+                        <option value="B">B区</option>
+                        <option value="C">C区</option>
+                    </select>
+                </div>
+                <div class="layui-col-md3">
+                    <select id="statusFilter" class="layui-input">
+                        <option value="">全部状态</option>
+                        <option value="EMPTY">空闲</option>
+                        <option value="OCCUPIED">占用</option>
+                        <option value="ABNORMAL">异常</option>
+                    </select>
+                </div>
+            </div>
+            <table class="layui-table" id="locationTable" lay-filter="locationTable" style="margin-top:20px;"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initLocationManage = function() {
+    layui.use(['table', 'layer'], function(){
+        var table = layui.table;
+        var layer = layui.layer;
+
+        table.render({
+            elem: '#locationTable',
+            url: '/api/location',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            page: true,
+            cols: [[
+                {field:'id', title:'ID', width:80},
+                {field:'locationCode', title:'货位编码', width:120},
+                {field:'zone', title:'区域', width:80},
+                {field:'status', title:'状态', width:100},
+                {field:'createTime', title:'创建时间', width:180},
+                {title:'操作', width:200, toolbar:'#locationBar'}
+            ]]
+        });
+
+        table.on('tool(locationTable)', function(obj){
+            var data = obj.data;
+            if(obj.event === 'updateStatus'){
+                layer.open({
+                    title: '修改货位状态',
+                    type: 1,
+                    area: ['300px', '200px'],
+                    content: `
+                        <div class="layui-form" style="padding:20px;">
+                            <select name="status" class="layui-input">
+                                <option value="EMPTY">空闲</option>
+                                <option value="OCCUPIED">占用</option>
+                                <option value="ABNORMAL">异常</option>
+                            </select>
+                        </div>
+                    `,
+                    btn: ['保存', '取消'],
+                    yes: function(index){
+                        var status = document.querySelector('select[name="status"]').value;
+                        apiPut('/location/' + data.id + '/status', {status: status}).then(res => {
+                            layer.msg('状态已更新');
+                            layer.close(index);
+                            table.reload('locationTable');
+                        });
+                    }
+                });
+            } else if(obj.event === 'move'){
+                layer.open({
+                    title: '移库操作',
+                    type: 1,
+                    area: ['400px', '250px'],
+                    content: `
+                        <div class="layui-form" style="padding:20px;">
+                            <div class="layui-form-item">
+                                <label>目标货位</label>
+                                <select name="targetLocationId" class="layui-input"></select>
+                            </div>
+                            <div class="layui-form-item">
+                                <label>转移数量</label>
+                                <input type="number" name="quantity" value="${data.quantity}" class="layui-input">
+                            </div>
+                        </div>
+                    `,
+                    btn: ['确认移库', '取消'],
+                    yes: function(index){
+                        layer.msg('移库完成');
+                        layer.close(index);
+                        table.reload('locationTable');
+                    }
+                });
+            }
+        });
+    });
+}
+</script>
+<script type="text/html" id="locationBar">
+    <a class="layui-btn layui-btn-xs" lay-event="updateStatus">修改状态</a>
+    {{# if(d.status === 'OCCUPIED'){ }}
+    <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="move">移库</a>
+    {{# } }}
+</script>

@@ -1,0 +1,122 @@
+<div class="page-container">
+    <div class="layui-card">
+        <div class="layui-card-header">
+            <span>质量检查</span>
+            <button class="layui-btn layui-btn-sm" id="createCheckBtn">发起质检任务</button>
+        </div>
+        <div class="layui-card-body">
+            <table class="layui-table" id="qualityTable" lay-filter="qualityTable"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initQualityCheck = function() {
+    layui.use(['table', 'layer'], function(){
+        var table = layui.table;
+        var layer = layui.layer;
+
+        table.render({
+            elem: '#qualityTable',
+            url: '/api/manager/quality/list',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            page: true,
+            cols: [[
+                {field:'id', title:'ID', width:80},
+                {field:'checkNo', title:'质检单号', width:150},
+                {field:'productName', title:'商品', width:180},
+                {field:'batchNo', title:'批次号', width:120},
+                {field:'sampleCount', title:'抽检数量', width:100},
+                {field:'qualifiedCount', title:'合格数量', width:100},
+                {field:'status', title:'状态', width:100},
+                {field:'operatorName', title:'操作员', width:100},
+                {title:'操作', width:150, toolbar:'#qualityBar'}
+            ]]
+        });
+
+        table.on('tool(qualityTable)', function(obj){
+            if(obj.event === 'audit'){
+                layer.open({
+                    title: '审核质检结果',
+                    type: 1,
+                    area: ['400px', '250px'],
+                    content: `
+                        <div class="layui-form" style="padding:20px;">
+                            <div class="layui-form-item">
+                                <label>审核意见</label>
+                                <select name="result" class="layui-input">
+                                    <option value="PASS">通过</option>
+                                    <option value="REJECT">不通过</option>
+                                </select>
+                            </div>
+                            <div class="layui-form-item">
+                                <label>备注</label>
+                                <textarea name="remark" class="layui-textarea"></textarea>
+                            </div>
+                        </div>
+                    `,
+                    btn: ['确认审核', '取消'],
+                    yes: function(index, layero){
+                        apiPut('/manager/quality/' + obj.data.id + '/audit', {
+                            result: layero.find('select[name="result"]').val(),
+                            remark: layero.find('textarea[name="remark"]').val()
+                        }).then(res => {
+                            layer.msg('审核完成');
+                            layer.close(index);
+                            table.reload('qualityTable');
+                        });
+                    }
+                });
+            } else if(obj.event === 'reject'){
+                apiPut('/manager/quality/' + obj.data.id + '/reject').then(res => {
+                    layer.msg('已发起退货流程');
+                    table.reload('qualityTable');
+                });
+            }
+        });
+
+        document.getElementById('createCheckBtn').onclick = function(){
+            layer.open({
+                title: '发起质检任务',
+                type: 1,
+                area: ['400px', '300px'],
+                content: `
+                    <div class="layui-form" style="padding:20px;">
+                        <div class="layui-form-item">
+                            <label>商品</label>
+                            <select name="productId" class="layui-input"></select>
+                        </div>
+                        <div class="layui-form-item">
+                            <label>批次号</label>
+                            <input type="text" name="batchNo" class="layui-input">
+                        </div>
+                        <div class="layui-form-item">
+                            <label>抽检数量</label>
+                            <input type="number" name="sampleCount" class="layui-input">
+                        </div>
+                        <div class="layui-form-item">
+                            <label>操作员</label>
+                            <select name="operatorId" class="layui-input"></select>
+                        </div>
+                    </div>
+                `,
+                btn: ['发起', '取消'],
+                yes: function(index){
+                    layer.msg('质检任务已发起');
+                    layer.close(index);
+                    table.reload('qualityTable');
+                }
+            });
+        };
+    });
+}
+</script>
+<script type="text/html" id="qualityBar">
+    {{# if(d.status === 'PENDING'){ }}
+    <a class="layui-btn layui-btn-xs" lay-event="audit">审核</a>
+    {{# } else if(d.status === 'PASS'){ }}
+    <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="reject">发起退货</a>
+    {{# } }}
+</script>

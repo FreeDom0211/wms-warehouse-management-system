@@ -1,0 +1,51 @@
+<div class="page-container">
+    <div class="layui-card">
+        <div class="layui-card-header">预警管理</div>
+        <div class="layui-card-body">
+            <table class="layui-table" id="warningTable" lay-filter="warningTable"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initAlertManagement = function() {
+    layui.use(['table', 'layer'], function(){
+        var table = layui.table;
+        var layer = layui.layer;
+
+        table.render({
+            elem: '#warningTable',
+            url: '/api/manager/alert/list',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            page: true,
+            cols: [[
+                {field:'id', title:'ID', width:80},
+                {field:'alertType', title:'预警类型', width:120},
+                {field:'productName', title:'商品', width:180},
+                {field:'locationCode', title:'货位', width:100},
+                {field:'alertLevel', title:'预警级别', width:100},
+                {field:'description', title:'描述', width:200},
+                {field:'status', title:'状态', width:100},
+                {field:'createTime', title:'创建时间', width:180},
+                {title:'操作', width:100, toolbar:'#warningBar'}
+            ]]
+        });
+
+        table.on('tool(warningTable)', function(obj){
+            if(obj.event === 'handle'){
+                apiPost('/manager/alert/' + obj.data.id + '/handle', {handlerId: 1, handleResult: 'RESOLVED'}).then(res => {
+                    layer.msg('预警已处理');
+                    table.reload('warningTable');
+                });
+            }
+        });
+    });
+}
+</script>
+<script type="text/html" id="warningBar">
+    {{# if(d.status === 'UNHANDLED'){ }}
+    <a class="layui-btn layui-btn-xs" lay-event="handle">处理</a>
+    {{# } }}
+</script>

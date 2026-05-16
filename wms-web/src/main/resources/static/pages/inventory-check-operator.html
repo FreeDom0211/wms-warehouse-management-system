@@ -1,0 +1,115 @@
+<div class="page-container">
+    <div class="layui-card">
+        <div class="layui-card-header">
+            <span>库存盘点</span>
+            <button class="layui-btn layui-btn-sm" id="createCheckBtn">创建盘点任务</button>
+        </div>
+        <div class="layui-card-body">
+            <table class="layui-table" id="checkTable" lay-filter="checkTable"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initInventoryCheck = function() {
+    layui.use(['table', 'layer'], function(){
+        var table = layui.table;
+        var layer = layui.layer;
+        var currentUserId = 3;
+
+        table.render({
+            elem: '#checkTable',
+            url: '/api/check/operator/' + currentUserId,
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            page: true,
+            cols: [[
+                {field:'id', title:'ID', width:80},
+                {field:'checkNo', title:'盘点单号', width:150},
+                {field:'zone', title:'盘点区域', width:120},
+                {field:'status', title:'状态', width:100},
+                {field:'createTime', title:'创建时间', width:180},
+                {title:'操作', width:150, toolbar:'#checkBar'}
+            ]]
+        });
+
+        table.on('tool(checkTable)', function(obj){
+            if(obj.event === 'detail'){
+                showCheckDetail(obj.data.id);
+            }
+        });
+
+        document.getElementById('createCheckBtn').onclick = function(){
+            layer.open({
+                title: '创建盘点任务',
+                type: 1,
+                area: ['400px', '250px'],
+                content: `
+                    <div class="layui-form" style="padding:20px;">
+                        <div class="layui-form-item">
+                            <label>盘点区域</label>
+                            <select name="zone" class="layui-input">
+                                <option value="A">A区</option>
+                                <option value="B">B区</option>
+                                <option value="C">C区</option>
+                                <option value="ALL">全库</option>
+                            </select>
+                        </div>
+                    </div>
+                `,
+                btn: ['创建', '取消'],
+                yes: function(index){
+                    apiPost('/check/task', {operatorId: currentUserId, zone: 'A'}).then(res => {
+                        layer.msg('盘点任务已创建');
+                        layer.close(index);
+                        table.reload('checkTable');
+                    });
+                }
+            });
+        };
+    });
+}
+
+function showCheckDetail(checkId){
+    apiGet('/check/' + checkId + '/details').then(res => {
+        layer.open({
+            title: '盘点详情',
+            type: 1,
+            area: ['600px', '400px'],
+            content: `
+                <div style="padding:20px;">
+                    <table class="layui-table">
+                        <thead>
+                            <tr><th>货位</th><th>商品</th><th>批次</th><th>系统数量</th><th>实际数量</th></tr>
+                        </thead>
+                        <tbody id="checkItems"></tbody>
+                    </table>
+                    <button class="layui-btn" style="margin-top:15px;" onclick="submitCheck('${checkId}')">提交盘点结果</button>
+                </div>
+            `,
+            success: function(){
+                var items = res.data.items || [];
+                var html = '';
+                items.forEach(item => {
+                    html += `<tr>
+                        <td>${item.locationCode}</td>
+                        <td>${item.productName}</td>
+                        <td>${item.batchNo}</td>
+                        <td>${item.systemQuantity}</td>
+                        <td><input type="number" value="${item.systemQuantity}" class="layui-input" style="width:100px;"></td>
+                    </tr>`;
+                });
+                document.getElementById('checkItems').innerHTML = html;
+            }
+        });
+    });
+}
+
+function submitCheck(checkId){
+    layer.msg('盘点结果已提交');
+}
+</script>
+<script type="text/html" id="checkBar">
+    <a class="layui-btn layui-btn-xs" lay-event="detail">执行盘点</a>
+</script>

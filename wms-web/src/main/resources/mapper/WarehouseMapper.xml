@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jd.wms.dao.mapper.WarehouseMapper">
+
+    <select id="selectByName" resultType="com.jd.wms.dao.entity.Warehouse">
+        SELECT * FROM warehouse WHERE name = #{name}
+    </select>
+
+    <update id="updateWarehouseId">
+        UPDATE warehouse SET id = #{newId} WHERE id = #{oldId}
+    </update>
+
+</mapper>

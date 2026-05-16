@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jd.wms.dao.mapper.StockOutMapper">
+
+    <select id="selectByStockOutNo" resultType="com.jd.wms.dao.entity.StockOut">
+        SELECT * FROM stock_out WHERE stock_out_no = #{stockOutNo}
+    </select>
+
+</mapper>

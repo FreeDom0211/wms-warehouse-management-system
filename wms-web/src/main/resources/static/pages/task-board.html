@@ -1,0 +1,111 @@
+<div class="page-container" style="padding: 20px;">
+    <div class="layui-card" style="margin-bottom: 0;">
+        <div class="layui-card-header" style="padding: 15px 20px;">
+            <span style="font-size: 18px; font-weight: bold; color: #333;">任务看板</span>
+        </div>
+        <div class="layui-card-body" style="padding: 25px;">
+            <div class="layui-row layui-col-space20">
+                <div class="layui-col-md4">
+                    <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(255, 152, 0, 0.1);">
+                        <div style="font-size: 32px; font-weight: bold; color: #e65100;" id="pendingcount">0</div>
+                        <div style="color: #666; margin-top: 8px; font-size: 14px;">待处理中</div>
+                    </div>
+                </div>
+                <div class="layui-col-md4">
+                    <div style="background: #e3f2fd; border-left: 4px solid #1565c0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(21, 101, 192, 0.1);">
+                        <div style="font-size: 32px; font-weight: bold; color: #1565c0;" id="PROCESSINGcount">0</div>
+                        <div style="color: #666; margin-top: 8px; font-size: 14px;">进行中</div>
+                    </div>
+                </div>
+                <div class="layui-col-md4">
+                    <div style="background: #e8f5e9; border-left: 4px solid #2e7d32; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(46, 125, 50, 0.1);">
+                        <div style="font-size: 32px; font-weight: bold; color: #2e7d32;" id="COMPLETEDcount">0</div>
+                        <div style="color: #666; margin-top: 8px; font-size: 14px;">已完成</div>
+                    </div>
+                </div>
+            </div>
+            <div class="layui-card-header-right" style="padding: 20px 0;">
+                <select id="statusFilter" class="layui-select" style="width: 140px; margin-right: 10px;">
+                    <option value="">全部状态</option>
+                    <option value="PENDING">待处理中</option>
+                    <option value="PROCESSING">进行中</option>
+                    <option value="COMPLETED">已完成</option>
+                </select>
+                <button class="layui-btn layui-btn-sm" id="refreshbtn">刷新</button>
+            </div>
+            <table class="layui-table" id="tskTble" lay-filter="tskTble" style="margin-top: 0;"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initTaskBoard = function() {
+    layui.use(['table', 'layer'], function(){
+        var table = layui.table;
+        var layer = layui.layer;
+        var currentUserId = 3;
+
+        loadStatistics();
+        initTable();
+
+        document.getElementById('refreshbtn').onclick = function(){
+            loadStatistics();
+            table.reload('tskTble');
+        };
+
+        document.getElementById('statusFilter').onchange = function(){
+            table.reload('tskTble', {where: {status: this.value}});
+        };
+
+        function loadStatistics(){
+            apiGet('/task/operator/' + currentUserId + '/statistics').then(res => {
+                var data = res.data;
+                document.getElementById('pendingcount').textContent = data.pending || 0;
+                document.getElementById('PROCESSINGcount').textContent = data.PROCESSING || 0;
+                document.getElementById('COMPLETEDcount').textContent = data.COMPLETED || 0;
+            });
+        }
+
+        function initTable(){
+            table.render({
+                elem: '#tskTble',
+                url: '/api/task/operator/' + currentUserId,
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                page: true,
+                cols: [[
+                    {field:'id', title:'ID', width:80},
+                    {field:'taskType', title:'任务类型', width:120},
+                    {field:'relatedNo', title:'关联单号', width:150},
+                    {field:'priority', title:'优先级', width:80},
+                    {field:'status', title:'状态', width:100},
+                    {field:'createTime', title:'创建时间', width:180},
+                    {title:'操作', width:150, toolbar:'#tskbr'}
+                ]]
+            });
+
+            table.on('tool(tskTble)', function(obj){
+                if(obj.event === 'process'){
+                    apiPut('/task/' + obj.data.id + '/status', {status: 'PROCESSING'}).then(res => {
+                        layer.msg('任务已开始处理');
+                        table.reload('tskTble');
+                    });
+                } else if(obj.event === 'complete'){
+                    apiPut('/task/' + obj.data.id + '/status', {status: 'COMPLETED'}).then(res => {
+                        layer.msg('任务已完成');
+                        table.reload('tskTble');
+                    });
+                }
+            });
+        }
+    });
+}
+</script>
+<script type="text/html" id="tskbr">
+    {{# if(d.status === 'PENDING'){ }}
+    <a class="layui-btn layui-btn-xs" lay-event="process">开始处理</a>
+    {{# } else if(d.status === 'PROCESSING'){ }}
+    <a class="layui-btn layui-btn-xs layui-btn-success" lay-event="complete">完成任务</a>
+    {{# } }}
+</script>

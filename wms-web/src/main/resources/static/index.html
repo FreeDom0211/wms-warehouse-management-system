@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>京东仓储管理系统</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/layui@2.9.11/dist/css/layui.css">
+    <style>
+        * { margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+        .layui-layout-admin .layui-header { background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); }
+        .layui-header .layui-nav { background: transparent; }
+        .layui-header .layui-nav-item { line-height: 60px; }
+        .layui-header .layui-nav-item a { color: #fff; }
+        .layui-header .layui-nav-item a:hover { color: #e3f2fd; }
+        .layui-side-scroll { width: 200px; }
+        .layui-nav-tree .layui-nav-child a { padding-left: 40px !important; color: #000000; }
+        .layui-nav-child { background: #ffffff !important; }
+        .layui-nav-child a { color: #000000 !important; }
+        .layui-body { background: #f5f7fa; }
+        .page-container { padding: 20px; }
+        .layui-card { margin-bottom: 20px; }
+        .btn-primary { background: #1e88e5; border-color: #1e88e5; }
+        .btn-success { background: #4caf50; border-color: #4caf50; }
+        .btn-warning { background: #ff9800; border-color: #ff9800; }
+        .btn-danger { background: #f44336; border-color: #f44336; }
+    </style>
+</head>
+<body class="layui-layout-body">
+    <div class="layui-layout layui-layout-admin">
+        <div class="layui-header">
+            <div class="layui-logo" style="font-size: 20px; color: #fff;">
+                <i class="layui-icon" style="font-size: 24px;">&#xe613;</i> 京东仓储管理系统
+            </div>
+            <ul class="layui-nav layui-layout-right">
+                <li class="layui-nav-item">
+                    <a href="javascript:;" id="userInfo">
+                        <i class="layui-icon">&#xe609;</i> 
+                        <span id="userName">管理员</span>
+                        <span id="roleName">管理员</span>
+                    </a>
+                    <dl class="layui-nav-child">
+                        <dd><a href="javascript:;" onclick="showChangePwdModal()">修改密码</a></dd>
+                        <dd><a href="javascript:;" onclick="logout()">退出登录</a></dd>
+                    </dl>
+                </li>
+            </ul>
+        </div>
+
+        <div class="layui-side layui-bg-black">
+            <div class="layui-side-scroll">
+                <ul class="layui-nav layui-nav-tree" id="menuNav"></ul>
+            </div>
+        </div>
+
+        <div class="layui-body" id="mainContent">
+            <div class="page-container">
+                <div style="text-align:center;padding:100px 0;color:#999;">
+                    <i class="layui-icon" style="font-size:120px;">&#xe60a;</i>
+                    <div style="margin-top:20px;font-size:18px;">欢迎使用京东仓储管理系统</div>
+                    <div style="margin-top:10px;font-size:14px;color:#bbb;">请从左侧菜单选择功能模块</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.11/dist/layui.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.7/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script>
+        const axiosInstance = axios.create({
+            baseURL: '/api',
+            timeout: 30000,
+        });
+
+        axiosInstance.interceptors.request.use(
+            config => {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    config.headers.Authorization = 'Bearer ' + token;
+                }
+                return config;
+            },
+            error => {
+                return Promise.reject(error);
+            }
+        );
+
+        axiosInstance.interceptors.response.use(
+            response => {
+                return response.data;
+            },
+            error => {
+                if (error.response && error.response.status === 401) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('role');
+                    window.location.href = '/login.html';
+                }
+                return Promise.reject(error);
+            }
+        );
+
+        function apiGet(url, params) {
+            return axiosInstance.get(url, { params });
+        }
+
+        function apiPost(url, data) {
+            return axiosInstance.post(url, data);
+        }
+
+        function apiPut(url, data) {
+            return axiosInstance.put(url, data);
+        }
+
+        function apiDelete(url) {
+            return axiosInstance.delete(url);
+        }
+
+        const menus = {
+            OPERATOR: [
+                { id: 'stockIn', name: '入库管理', icon: '&#xe61f;', url: 'pages/stock-in-operator.html' },
+                { id: 'stockOut', name: '出库管理', icon: '&#xe620;', url: 'pages/stock-out-operator.html' },
+                { id: 'taskBoard', name: '任务看板', icon: '&#xe631;', url: 'pages/task-board.html' },
+                { id: 'inventoryCheck', name: '库存盘点', icon: '&#xe63c;', url: 'pages/inventory-check-operator.html' },
+                { id: 'location', name: '货位管理', icon: '&#xe63f;', url: 'pages/location.html' },
+                { id: 'exception', name: '异常处理', icon: '&#xe640;', url: 'pages/abnormal-operator.html' }
+            ],
+            ADMINISTRATOR: [
+                { id: 'inventoryMonitor', name: '库存监控', icon: '&#xe608;', url: 'pages/inventory-monitor.html' },
+                { id: 'taskDispatch', name: '任务调度', icon: '&#xe631;', url: 'pages/task-schedule.html' },
+                { id: 'performance', name: '绩效管理', icon: '&#xe62e;', url: 'pages/performance.html' },
+                { id: 'qualityCheck', name: '质量检查', icon: '&#xe617;', url: 'pages/quality-check.html' },
+                { id: 'alertManagement', name: '预警管理', icon: '&#xe624;', url: 'pages/warning.html' }
+            ],
+            MANAGER: [
+                { id: 'userManage', name: '用户管理', icon: '&#xe609;', url: 'pages/user.html' },
+                { id: 'roleManage', name: '角色管理', icon: '&#xe621;', url: 'pages/role.html' },
+                { id: 'warehouseManage', name: '仓库管理', icon: '&#xe613;', url: 'pages/warehouse.html' },
+                { id: 'backup', name: '数据备份', icon: '&#xe62f;', url: 'pages/backup.html' },
+                { id: 'operationLog', name: '操作日志', icon: '&#xe616;', url: 'pages/operation-log.html' }
+            ]
+        };
+
+        function renderMenu(roleCode) {
+            const role = roleCode?.toUpperCase();
+            const menuList = menus[role] || [];
+            let html = '';
+            menuList.forEach(item => {
+                html += `<li class="layui-nav-item"><a href="javascript:loadPage('${item.id}', '${item.url}', '${item.name}')"><i class="layui-icon">${item.icon}</i><span>${item.name}</span></a></li>`;
+            });
+            document.getElementById('menuNav').innerHTML = html;
+            layui.use('element', function(element) {
+                element.render('nav');
+            });
+        }
+
+        function loadPage(pageId, url, title) {
+            const content = document.getElementById('mainContent');
+            content.innerHTML = '<div style="text-align:center;padding:50px;"><i class="layui-icon layui-anim layui-anim-rotate" style="font-size:32px;">&#xe631;</i><div style="margin-top:10px;">加载中...</div></div>';
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', '/' + url, true);
+            xhr.onload = function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    content.innerHTML = xhr.responseText;
+                    executeScripts(content);
+                    setTimeout(() => {
+                        initPage(pageId);
+                    }, 500);
+                } else {
+                    content.innerHTML = '<div style="text-align:center;padding:50px;color:#999;">页面加载失败: HTTP ' + xhr.status + '</div>';
+                }
+            };
+            xhr.onerror = function() {
+                content.innerHTML = '<div style="text-align:center;padding:50px;color:#999;">网络请求失败</div>';
+            };
+            xhr.send();
+        }
+
+        function executeScripts(element) {
+            const scripts = element.querySelectorAll('script');
+            console.log('executeScripts - found scripts:', scripts.length);
+            let scriptIndex = 0;
+            
+            function executeNextScript() {
+                if (scriptIndex >= scripts.length) {
+                    console.log('executeScripts - all scripts executed');
+                    return;
+                }
+                
+                const oldScript = scripts[scriptIndex];
+                try {
+                    if (oldScript.type && oldScript.type !== 'text/javascript' && oldScript.type !== '') {
+                        console.log('executeScripts - skipping template script:', scriptIndex);
+                        scriptIndex++;
+                        executeNextScript();
+                        return;
+                    }
+                    const scriptContent = oldScript.textContent || oldScript.innerHTML;
+                    if (scriptContent.trim()) {
+                        console.log('executeScripts - executing script:', scriptIndex, scriptContent.length, 'chars');
+                        const newScript = document.createElement('script');
+                        newScript.textContent = scriptContent;
+                        newScript.onload = function() {
+                            console.log('executeScripts - script loaded:', scriptIndex);
+                            scriptIndex++;
+                            executeNextScript();
+                        };
+                        newScript.onerror = function() {
+                            console.log('executeScripts - script error:', scriptIndex);
+                            scriptIndex++;
+                            executeNextScript();
+                        };
+                        document.head.appendChild(newScript);
+                    } else {
+                        scriptIndex++;
+                        executeNextScript();
+                    }
+                } catch (e) {
+                    console.error('Error executing script:', scriptIndex, e);
+                    scriptIndex++;
+                    executeNextScript();
+                }
+            }
+            
+            executeNextScript();
+        }
+
+        function initPage(pageId) {
+            setTimeout(() => {
+                switch(pageId) {
+                    case 'userManage':
+                        window.initUserManage && window.initUserManage();
+                        break;
+                    case 'roleManage':
+                        window.initRoleManage && window.initRoleManage();
+                        break;
+                    case 'warehouseManage':
+                        window.initWarehouseManage && window.initWarehouseManage();
+                        break;
+                    case 'backup':
+                        window.initBackupPage && window.initBackupPage();
+                        break;
+                    case 'operationLog':
+                        window.initLogPage && window.initLogPage();
+                        break;
+                    case 'stockIn':
+                        window.initStockIn && window.initStockIn();
+                        break;
+                    case 'stockOut':
+                        window.initStockOut && window.initStockOut();
+                        break;
+                    case 'taskBoard':
+                        window.initTaskBoard && window.initTaskBoard();
+                        break;
+                    case 'inventoryCheck':
+                        window.initInventoryCheck && window.initInventoryCheck();
+                        break;
+                    case 'location':
+                        window.initLocationManage && window.initLocationManage();
+                        break;
+                    case 'exception':
+                        window.initException && window.initException();
+                        break;
+                    case 'inventoryMonitor':
+                        window.initInventoryMonitor && window.initInventoryMonitor();
+                        break;
+                    case 'taskDispatch':
+                        window.initTaskDispatch && window.initTaskDispatch();
+                        break;
+                    case 'performance':
+                        window.initPerformance && window.initPerformance();
+                        break;
+                    case 'qualityCheck':
+                        window.initQualityCheck && window.initQualityCheck();
+                        break;
+                    case 'alertManagement':
+                        window.initAlertManagement && window.initAlertManagement();
+                        break;
+                }
+            }, 300);
+        }
+
+        function initUserInfo() {
+            const userStr = localStorage.getItem('user');
+            const role = localStorage.getItem('role');
+            console.log('initUserInfo - user:', userStr);
+            console.log('initUserInfo - role:', role);
+            if (userStr) {
+                const user = JSON.parse(userStr);
+                document.getElementById('userName').textContent = user.name || user.workNo;
+                const roleMap = { OPERATOR: '操作员', MANAGER: '管理员', ADMINISTRATOR: '仓储主管' };
+                const roleName = roleMap[role] || role || '未知';
+                console.log('initUserInfo - roleName:', roleName);
+                document.getElementById('roleName').textContent = roleName;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('role');
+            window.location.href = '/login.html';
+        }
+
+        function showChangePwdModal() {
+            alert('修改密码功能');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initUserInfo();
+            const role = localStorage.getItem('role');
+            if (role) {
+                renderMenu(role);
+            }
+        });
+    </script>
+</body>
+</html>
