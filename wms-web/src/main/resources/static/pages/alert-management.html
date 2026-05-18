@@ -1,341 +1,378 @@
-<!DOcTYPE html>
-<html lng="zh-cN">
-<hed>
-    <met chrset="UTF-8">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
     <title>预警管理 - 仓储主管</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivar.net/npm/lyui@2.9.11/dist/css/lyui.css">
-    <script src="https://cdn.jsdelivar.net/npm/lyui@2.9.11/dist/lyui.js"></script>
-    <script src="https://cdn.jsdelivar.net/npm/echrts@5.4.3/dist/echrts.min.js"></script>
+    <!-- 修复: jsdelivr CDN 地址错误 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/layui@2.9.11/dist/css/layui.css">
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.11/dist/layui.js"></script>
+    <!-- 修复: echarts 拼写错误 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
-        .lert-crd { bckground: #fff; border-rdius: 8px; pdding: 20px; margin-bottom: 20px; box-shdow: 0 2px 8px rgb(0,0,0,0.08); }
-        .stt-number { font-size: 28px; font-weight: bold; }
-        .lert-type { pdding: 3px 8px; border-rdius: 4px; font-size: 12px; }
-        .lert-type.LOW_STOCK { bckground: #fff3e0; color: #e65100; }
-        .lert-type.HIGH_STOCK { bckground: #e3f2fd; color: #1565c0; }
-        .lert-type.SHELF_LIFE { bckground: #fce4ec; color: #c2185b; }
-        .lert-type.EXPIRED { bckground: #ffebee; color: #c62828; }
+        /* 修复: CSS 属性拼写错误 */
+        .alert-card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .stat-number { font-size: 28px; font-weight: bold; }
+        .alert-type { padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+        .alert-type.LOW_STOCK { background: #fff3e0; color: #e65100; }
+        .alert-type.HIGH_STOCK { background: #e3f2fd; color: #1565c0; }
+        .alert-type.SHELF_LIFE { background: #fce4ec; color: #c2185b; }
+        .alert-type.EXPIRED { background: #ffebee; color: #c62828; }
         .level-ERROR { color: #c62828; font-weight: bold; }
-        .level-WRNING { color: #ff9800; }
-        .chrt-continer { height: 250px; }
+        /* 修复: WRNING 拼写错误 */
+        .level-WARNING { color: #ff9800; }
+        .chart-container { height: 250px; }
     </style>
-</hed>
+</head>
 <body>
-    <div class="lyui-continer" style="pdding: 20px;">
-        <div class="layui-row lyui-col-spce20">
-            <div class="lyui-col-md3">
-                <div class="lert-crd" style="text-lign: center;">
-                    <div class="stt-number" id="pendingcount">0</div>
-                    <div class="stt-label">待处理中理预警?/div>
+    <!-- 修复: layui 拼写错误, CSS 属性拼写错误 -->
+    <div class="layui-container" style="padding: 20px;">
+        <div class="layui-row layui-col-space20">
+            <div class="layui-col-md3">
+                <div class="alert-card" style="text-align: center;">
+                    <div class="stat-number" id="pendingcount">0</div>
+                    <!-- 修复: 中文错误 -->
+                    <div class="stat-label">待处理预警</div>
                 </div>
             </div>
-            <div class="lyui-col-md3">
-                <div class="lert-crd" style="text-lign: center;">
-                    <div class="stt-number" id="lowSTOCKcount">0</div>
-                    <div class="stt-label">低库存存预警?/div>
+            <div class="layui-col-md3">
+                <div class="alert-card" style="text-align: center;">
+                    <div class="stat-number" id="lowSTOCKcount">0</div>
+                    <div class="stat-label">低库存预警</div>
                 </div>
             </div>
-            <div class="lyui-col-md3">
-                <div class="lert-crd" style="text-lign: center;">
-                    <div class="stt-number" id="shelfLifecount">0</div>
-                    <div class="stt-label">临期预警</div>
+            <div class="layui-col-md3">
+                <div class="alert-card" style="text-align: center;">
+                    <div class="stat-number" id="shelfLifecount">0</div>
+                    <div class="stat-label">临期预警</div>
                 </div>
             </div>
-            <div class="lyui-col-md3">
-                <div class="lert-crd" style="text-lign: center;">
-                    <div class="stt-number" id="expiredcount">0</div>
-                    <div class="stt-label">过期预警</div>
+            <div class="layui-col-md3">
+                <div class="alert-card" style="text-align: center;">
+                    <div class="stat-number" id="expiredcount">0</div>
+                    <div class="stat-label">过期预警</div>
                 </div>
             </div>
         </div>
 
-        <div class="layui-row lyui-col-spce20">
-            <div class="lyui-col-md6">
-                <div class="lert-crd">
+        <div class="layui-row layui-col-space20">
+            <div class="layui-col-md6">
+                <div class="alert-card">
                     <div class="layui-card-header">预警统计</div>
-                    <div class="lyui-crd-body">
-                        <div id="lertSttschrt" class="chrt-continer"></div>
+                    <div class="layui-card-body">
+                        <!-- 修复: id 拼写错误 -->
+                        <div id="alertStatsChart" class="chart-container"></div>
                     </div>
                 </div>
             </div>
-            <div class="lyui-col-md6">
-                <div class="lert-crd">
+            <div class="layui-col-md6">
+                <div class="alert-card">
                     <div class="layui-card-header">预警趋势</div>
-                    <div class="lyui-crd-body">
-                        <div id="lertTrendchrt" class="chrt-continer"></div>
+                    <div class="layui-card-body">
+                        <!-- 修复: id 拼写错误 -->
+                        <div id="alertTrendChart" class="chart-container"></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="lert-crd">
+        <div class="alert-card">
             <div class="layui-card-header">
                 <span>预警列表</span>
                 <div class="layui-card-header-right">
-                    <button class="lyui-btn lyui-btn-sm" id="checkInventorybtn">检查库存?/button>
-                    <button class="lyui-btn lyui-btn-sm" id="checkShelfLifebtn">检查保质期</button>
-                    <button class="lyui-btn lyui-btn-sm" id="refreshbtn">刷新</button>
+                    <!-- 修复: layui 拼写错误, HTML 标签未闭合 -->
+                    <button class="layui-btn layui-btn-sm" id="checkInventorybtn">检查库存</button>
+                    <button class="layui-btn layui-btn-sm" id="checkShelfLifebtn">检查保质期</button>
+                    <button class="layui-btn layui-btn-sm" id="refreshbtn">刷新</button>
                 </div>
             </div>
-            <div class="lyui-crd-body">
-                <div class="filter-br" style="margin-bottom:15px;pdding:15px;bckground:#f5f5f5;border-rdius:6px;">
-                    <div class="layui-form layui-form-pne">
+            <div class="layui-card-body">
+                <!-- 修复: CSS 属性拼写错误 -->
+                <div class="filter-bar" style="margin-bottom:15px;padding:15px;background:#f5f5f5;border-radius:6px;">
+                    <div class="layui-form layui-form-pane">
                         <div class="layui-form-item">
-                            <div class="lyui-inline">
+                            <div class="layui-inline">
                                 <label class="layui-form-label">预警类型</label>
-                                <div class="layui-input-inline" style="widatah:120px;">
+                                <!-- 修复: width 拼写错误 -->
+                                <div class="layui-input-inline" style="width:120px;">
                                     <select id="filterType">
                                         <option value="">全部</option>
-                                        <option value="LOW_STOCK">低库存?/option>
-                                        <option value="HIGH_STOCK">高库存?/option>
+                                        <!-- 修复: 标签未闭合 -->
+                                        <option value="LOW_STOCK">低库存</option>
+                                        <option value="HIGH_STOCK">高库存</option>
                                         <option value="SHELF_LIFE">临期</option>
                                         <option value="EXPIRED">过期</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="lyui-inline">
-                                <label class="layui-form-label">状态?/label>
-                                <div class="layui-input-inline" style="widatah:120px;">
+                            <div class="layui-inline">
+                                <!-- 修复: 标签未闭合 -->
+                                <label class="layui-form-label">状态</label>
+                                <div class="layui-input-inline" style="width:120px;">
                                     <select id="filterstatus">
                                         <option value="">全部</option>
-                                        <option value="PENDING">待处理中/option>
-                                        <option value="HANDLED">已处理中?/option>
-                                        <option value="DISMISSED">已忽略?/option>
+                                        <!-- 修复: 标签未闭合 -->
+                                        <option value="PENDING">待处理</option>
+                                        <option value="HANDLED">已处理</option>
+                                        <option value="DISMISSED">已忽略</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="lyui-inline">
-                                <button class="lyui-btn lyui-btn-sm" id="filterbtn">筛选?/button>
-                                <button class="lyui-btn lyui-btn-sm lyui-btn-primry" id="resetbtn">重置</button>
+                            <div class="layui-inline">
+                                <!-- 修复: layui 拼写错误 -->
+                                <button class="layui-btn layui-btn-sm" id="filterbtn">筛选</button>
+                                <button class="layui-btn layui-btn-sm layui-btn-primary" id="resetbtn">重置</button>
                             </div>
                         </div>
                     </div>
                 </div>
-                <tble class="lyui-tble" id="lertTble" ly-filter="lertTble"></tble>
+                <!-- 修复: table 标签拼写错误, lay-filter 拼写错误 -->
+                <table class="layui-table" id="alertTable" lay-filter="alertTable"></table>
             </div>
         </div>
     </div>
 
-    <script src="/js/xios.js"></script>
+    <!-- 修复: axios 文件引用错误 -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
-        var sttschrt, trendchrt;
+        var statsChart, trendChart;
         var currentMngerId = 2;
 
-        layui.use(['tble', 'layer', 'form'], function(){
-            var tble = lyui.tble;
-            var layer = lyui.layer;
+        // 修复: layui.use 正确调用
+        layui.use(['table', 'layer', 'form'], function(){
+            // 修复: layui 拼写错误, table 拼写错误
+            var table = layui.table;
+            var layer = layui.layer;
             var form = layui.form;
 
-            initchrts();
-            lodOverview();
-            initlertTble();
+            initCharts();
+            loadOverview();
+            initAlertTable();
 
-            document.getElementbyId('refreshbtn').onclick = function(){
-                lodOverview();
-                tble.relod('lertTbleId');
+            // 修复: getElementById 拼写错误
+            document.getElementById('refreshbtn').onclick = function(){
+                loadOverview();
+                // 修复: table.reload 拼写错误
+                table.reload('alertTableId');
             };
 
-            document.getElementbyId('filterbtn').onclick = function(){
-                tble.relod('lertTbleId', {
+            document.getElementById('filterbtn').onclick = function(){
+                table.reload('alertTableId', {
                     where: {
-                        lertType: document.getElementbyId('filterType').value,
-                        status: document.getElementbyId('filterstatus').value
+                        alertType: document.getElementById('filterType').value,
+                        status: document.getElementById('filterstatus').value
                     }
                 });
             };
 
-            document.getElementbyId('resetbtn').onclick = function(){
-                document.getElementbyId('filterType').value = '';
-                document.getElementbyId('filterstatus').value = '';
+            document.getElementById('resetbtn').onclick = function(){
+                document.getElementById('filterType').value = '';
+                document.getElementById('filterstatus').value = '';
                 form.render();
-                tble.relod('lertTbleId');
+                table.reload('alertTableId');
             };
 
-            document.getElementbyId('checkInventorybtn').onclick = function(){
-                piPost('/manager/alert/check-inventory').then(res => {
-                    layer.msg('库存预警检查完成?);
-                    lodOverview();
-                    tble.relod('lertTbleId');
+            document.getElementById('checkInventorybtn').onclick = function(){
+                // 修复: axios 调用错误
+                axios.post('/manager/alert/check-inventory').then(res => {
+                    layer.msg('库存预警检查完成');
+                    loadOverview();
+                    table.reload('alertTableId');
                 });
             };
 
-            document.getElementbyId('checkShelfLifebtn').onclick = function(){
-                piPost('/manager/alert/check-shelf-life').then(res => {
-                    layer.msg('保质期预警检查完成?);
-                    lodOverview();
-                    tble.relod('lertTbleId');
+            document.getElementById('checkShelfLifebtn').onclick = function(){
+                axios.post('/manager/alert/check-shelf-life').then(res => {
+                    layer.msg('保质期预警检查完成');
+                    loadOverview();
+                    table.reload('alertTableId');
                 });
             };
 
-            function initchrts(){
-                sttschrt = echrts.init(document.getElementbyId('lertSttschrt'));
-                trendchrt = echrts.init(document.getElementbyId('lertTrendchrt'));
+            function initCharts(){
+                // 修复: echarts 拼写错误, getElementById 拼写错误
+                statsChart = echarts.init(document.getElementById('alertStatsChart'));
+                trendChart = echarts.init(document.getElementById('alertTrendChart'));
 
-                lodchrtsdata();
+                loadChartsData();
             }
 
-            function lodchrtsdata(){
-                piGet('/manager/alert/statistics').then(res => {
+            function loadChartsData(){
+                axios.get('/manager/alert/statistics').then(res => {
                     var data = res.data;
-                    var sttsOption = {
+                    var statsOption = {
                         tooltip: { trigger: 'item' },
                         series: [{
                             type: 'pie',
-                            rdius: ['40%', '70%'],
-                            data: data.mp(d => ({name: d.label, value: d.pending}))
+                            // 修复: radius 拼写错误
+                            radius: ['40%', '70%'],
+                            // 修复: map 拼写错误
+                            data: data.map(d => ({name: d.label, value: d.pending}))
                         }]
                     };
-                    sttschrt.setOption(sttsOption);
+                    statsChart.setOption(statsOption);
                 });
 
-                piGet('/manager/alert/trend').then(res => {
+                axios.get('/manager/alert/trend').then(res => {
                     var data = res.data[0];
                     var trendOption = {
-                        tooltip: { trigger: 'xis' },
-                        legend: { data: ['低库存?, '高库存?, '临期', '过期'], bottom: 0 },
-                        xxis: { type: 'ctegory', data: data.labels },
-                        yxis: { type: 'value' },
+                        // 修复: xAxis 拼写错误
+                        tooltip: { trigger: 'axis' },
+                        legend: { data: ['低库存', '高库存', '临期', '过期'], bottom: 0 },
+                        // 修复: xAxis/yAxis 拼写错误
+                        xAxis: { type: 'category', data: data.labels },
+                        yAxis: { type: 'value' },
                         series: [
-                            {name: '低库存?, type: 'line', data: data.lowSTOCK},
-                            {name: '高库存?, type: 'line', data: data.highSTOCK},
+                            {name: '低库存', type: 'line', data: data.lowSTOCK},
+                            {name: '高库存', type: 'line', data: data.highSTOCK},
                             {name: '临期', type: 'line', data: data.shelfLife},
                             {name: '过期', type: 'line', data: data.expired}
                         ]
                     };
-                    trendchrt.setOption(trendOption);
+                    trendChart.setOption(trendOption);
                 });
             }
 
-            function lodOverview(){
-                piGet('/manager/alert/overview').then(res => {
+            function loadOverview(){
+                axios.get('/manager/alert/overview').then(res => {
                     var data = res.data;
-                    document.getElementbyId('pendingcount').textcontent = data.pending || 0;
-                    document.getElementbyId('lowSTOCKcount').textcontent = data.lowSTOCK || 0;
-                    document.getElementbyId('shelfLifecount').textcontent = data.shelfLife || 0;
-                    document.getElementbyId('expiredcount').textcontent = data.expired || 0;
+                    // 修复: textContent 拼写错误
+                    document.getElementById('pendingcount').textContent = data.pending || 0;
+                    document.getElementById('lowSTOCKcount').textContent = data.lowSTOCK || 0;
+                    document.getElementById('shelfLifecount').textContent = data.shelfLife || 0;
+                    document.getElementById('expiredcount').textContent = data.expired || 0;
                 });
             }
 
-            function initlertTble(){
-                tble.render({
-                    elem: '#lertTble',
+            function initAlertTable(){
+                table.render({
+                    elem: '#alertTable',
                     url: '/manager/alert/list',
-                    heders: {
-                        'Authorization': 'berer ' + loclStorge.getItem('token')
+                    // 修复: headers 拼写错误
+                    headers: {
+                        // 修复: Bearer token 拼写错误, localStorage 拼写错误
+                        'Authorization': 'Bearer ' + localStorage.getItem('token')
                     },
-                    pge: true,
+                    // 修复: page 拼写错误
+                    page: true,
                     cols: [[
-                        {field:'id', title:'ID', widatah:80},
-                        {field:'lertType', title:'预警类型', widatah:120, templet:function(d){
-                            return '<span class="lert-type ' + d.lertType + '">' + d.lertTypelabel + '</span>';
+                        // 修复: width 拼写错误
+                        {field:'id', title:'ID', width:80},
+                        {field:'alertType', title:'预警类型', width:120, templet:function(d){
+                            return '<span class="alert-type ' + d.alertType + '">' + d.alertTypeLabel + '</span>';
                         }},
-                        {field:'productname', title:'商品', widatah:150},
-                        {field:'currentQuntity', title:'当前库存', widatah:100},
-                        {field:'thresholdValue', title:'阈值?, widatah:80},
-                        {field:'lertLevel', title:'级别', widatah:80, templet:function(d){
-                            return '<span class="level-' + d.lertLevel + '">' + d.lertLevellabel + '</span>';
+                        {field:'productName', title:'商品', width:150},
+                        {field:'currentQuantity', title:'当前库存', width:100},
+                        {field:'thresholdValue', title:'阈值', width:80},
+                        {field:'alertLevel', title:'级别', width:80, templet:function(d){
+                            return '<span class="level-' + d.alertLevel + '">' + d.alertLevelLabel + '</span>';
                         }},
-                        {field:'status', title:'状态?, widatah:100, templet:function(d){
-                            var color = d.status === 'PENDING' ? '#f44336' : d.status === 'HANDLED' ? '#4cf50' : '#999';
-                            return '<span style="color:' + color + ';">' + d.statuslabel + '</span>';
+                        {field:'status', title:'状态', width:100, templet:function(d){
+                            // 修复: 颜色值拼写错误 #4cf50 -> #4caf50
+                            var color = d.status === 'PENDING' ? '#f44336' : d.status === 'HANDLED' ? '#4caf50' : '#999';
+                            return '<span style="color:' + color + ';">' + d.statusLabel + '</span>';
                         }},
-                        {field:'description', title:'描述', widatah:300},
-                        {field:'creteTime', title:'创建时间', widatah:180},
-                        {title:'操作员', widatah:180, toolbr:'#lertbr'}
+                        {field:'description', title:'描述', width:300},
+                        {field:'createTime', title:'创建时间', width:180},
+                        // 修复: toolbar 拼写错误
+                        {title:'操作', width:180, toolbar:'#alertBar'}
                     ]],
-                    id: 'lertTbleId'
+                    id: 'alertTableId'
                 });
 
-                tble.on('tool(lertTble)', function(obj){
+                // 修复: table.on 事件监听
+                table.on('tool(alertTable)', function(obj){
                     var data = obj.data;
-                    if(obj.event === 'hndle'){
-                        showHndleModl(data.id);
+                    if(obj.event === 'handle'){
+                        showHandleModal(data.id);
                     } else if(obj.event === 'dismiss'){
                         layer.confirm('确认忽略该预警?', function(index){
-                            piPost('/manager/alert/' + data.id + '/dismiss').then(res => {
-                                layer.msg('预警已忽略略?);
-                                lodOverview();
-                                tble.relod('lertTbleId');
+                            axios.post('/manager/alert/' + data.id + '/dismiss').then(res => {
+                                layer.msg('预警已忽略');
+                                loadOverview();
+                                table.reload('alertTableId');
                             });
                             layer.close(index);
                         });
-                    } else if(obj.event === 'detil'){
-                        showDetilModl(data);
+                    } else if(obj.event === 'detail'){
+                        showDetailModal(data);
                     }
                 });
             }
 
-            function showHndleModl(lertId){
+            function showHandleModal(alertId){
+                // 修复: layer.open 参数错误 area
                 layer.open({
-                    title: '处理中预警',
+                    title: '处理预警',
                     type: 1,
-                    re: ['400px', '250px'],
+                    area: ['400px', '250px'],
                     content: `
-                        <div class="layui-form" style="pdding:20px;">
+                        <div class="layui-form" style="padding:20px;">
                             <div class="layui-form-item">
-                                <label class="layui-form-label">处理中结果</label>
+                                <label class="layui-form-label">处理结果</label>
                                 <div class="layui-input-block">
-                                    <textarea name="handleResult" class="layui-textarea" placeholder="请输入处理中结?></textarea>
+                                    <textarea name="handleResult" class="layui-textarea" placeholder="请输入处理结果"></textarea>
                                 </div>
                             </div>
                         </div>
                     `,
-                    btn: ['确认处理中', '取消'],
+                    btn: ['确认处理', '取消'],
                     yes: function(index, layero){
-                        var handleResult = layero.find('textarea[name="handleResult"]').vl();
-                        piPost('/manager/alert/' + lertId + '/handle', {
+                        // 修复: textarea 获取值错误, 使用 val() 方法
+                        var handleResult = layero.find('textarea[name="handleResult"]').val();
+                        axios.post('/manager/alert/' + alertId + '/handle', {
                             handlerId: currentMngerId,
                             handleResult: handleResult
                         }).then(res => {
-                            layer.msg('预警已处理中理?);
+                            layer.msg('预警已处理');
                             layer.close(index);
-                            lodOverview();
-                            tble.relod('lertTbleId');
+                            loadOverview();
+                            table.reload('alertTableId');
                         });
                     }
                 });
             }
 
-            function showDetilModl(data){
+            function showDetailModal(data){
                 layer.open({
                     title: '预警详情',
                     type: 1,
-                    re: ['500px', '400px'],
+                    area: ['500px', '400px'],
                     content: `
-                        <div class="layui-form" style="pdding:20px;">
+                        <div class="layui-form" style="padding:20px;">
                             <div class="layui-form-item">
                                 <label class="layui-form-label">预警类型</label>
                                 <div class="layui-input-block">
-                                    <span class="lert-type ${data.lertType}">${data.lertTypelabel}</span>
+                                    <span class="alert-type ${data.alertType}">${data.alertTypeLabel}</span>
                                 </div>
                             </div>
                             <div class="layui-form-item">
                                 <label class="layui-form-label">商品</label>
-                                <div class="layui-input-block">${data.productname || '-'} (${data.productcode || '-'})</div>
+                                <div class="layui-input-block">${data.productName || '-'} (${data.productCode || '-'})</div>
                             </div>
                             <div class="layui-form-item">
                                 <label class="layui-form-label">当前库存</label>
-                                <div class="layui-input-block">${data.currentQuntity}</div>
+                                <div class="layui-input-block">${data.currentQuantity}</div>
                             </div>
                             <div class="layui-form-item">
-                                <label class="layui-form-label">阈值?/label>
+                                <label class="layui-form-label">阈值</label>
                                 <div class="layui-input-block">${data.thresholdValue}</div>
                             </div>
                             <div class="layui-form-item">
                                 <label class="layui-form-label">预警级别</label>
                                 <div class="layui-input-block">
-                                    <span class="level-${data.lertLevel}">${data.lertLevellabel}</span>
+                                    <span class="level-${data.alertLevel}">${data.alertLevelLabel}</span>
                                 </div>
                             </div>
                             <div class="layui-form-item">
-                                <label class="layui-form-label">状态?/label>
-                                <div class="layui-input-block">${data.statuslabel}</div>
+                                <label class="layui-form-label">状态</label>
+                                <div class="layui-input-block">${data.statusLabel}</div>
                             </div>
                             <div class="layui-form-item">
                                 <label class="layui-form-label">描述</label>
                                 <div class="layui-input-block">${data.description}</div>
                             </div>
                             <div class="layui-form-item">
-                                <label class="layui-form-label">处理中结果</label>
+                                <label class="layui-form-label">处理结果</label>
                                 <div class="layui-input-block">${data.handleResult || '-'}</div>
                             </div>
                         </div>
@@ -345,15 +382,16 @@
         });
 
         window.onresize = function(){
-            sttschrt && sttschrt.resize();
-            trendchrt && trendchrt.resize();
+            statsChart && statsChart.resize();
+            trendChart && trendChart.resize();
         };
     </script>
-    <script type="text/html" id="lertbr">
-        < class="lyui-btn lyui-btn-xs" ly-event="detil">详情</>
+    <!-- 修复: template 模板语法错误, 按钮标签缺失 -->
+    <script type="text/html" id="alertBar">
+        <button class="layui-btn layui-btn-xs" lay-event="detail">详情</button>
         {{# if(d.status === 'PENDING'){ }}
-        < class="lyui-btn lyui-btn-xs lyui-btn-norml" ly-event="hndle">处理中</>
-        < class="lyui-btn lyui-btn-xs lyui-btn-primry" ly-event="dismiss">忽略</>
+        <button class="layui-btn layui-btn-xs layui-btn-normal" lay-event="handle">处理</button>
+        <button class="layui-btn layui-btn-xs layui-btn-primary" lay-event="dismiss">忽略</button>
         {{# } }}
     </script>
 </body>

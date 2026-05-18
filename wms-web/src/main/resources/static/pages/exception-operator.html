@@ -62,8 +62,8 @@ function renderTable(records) {
             <td>${item.id}</td>
             <td>${item.exceptionNo || '-'}</td>
             <td>
-                <span style="padding:6px 14px; border-radius:16px; font-weight:700; font-size:13px; ${getTypeStyle(item.exceptionType)}">
-                    ${getTypeText(item.exceptionType)}
+                <span style="padding:6px 14px; border-radius:16px; font-weight:700; font-size:13px; ${getTypeStyle(item.exceptionType || item.type)}">
+                    ${getTypeText(item.exceptionType || item.type)}
                 </span>
             </td>
             <td>${item.relatedNo || '-'}</td>
@@ -72,7 +72,7 @@ function renderTable(records) {
                     ${getStatusText(item.status)}
                 </span>
             </td>
-            <td>${item.description || '-'}</td>
+            <td>${item.description ? item.description.replace(/null/g, '-') : '-'}</td>
             <td>${formatDate(item.createTime)}</td>
             <td>
                 ${item.status === 'PENDING' ? `
@@ -88,7 +88,11 @@ function getTypeText(type) {
         'QUANTITY_MISMATCH': '数量不符', 
         'DAMAGED': '货物损坏', 
         'MISSING': '货物丢失',
-        'OTHER': '其他异常'
+        'OTHER': '其他异常',
+        'DIFF': '库存差异',
+        'DAMAGE': '商品损坏',
+        'LOCATION_ABNORMAL': '货位异常',
+        'INVENTORY_DIFF': '库存差异'
     };
     return map[type] || type;
 }
@@ -98,19 +102,29 @@ function getTypeStyle(type) {
         'QUANTITY_MISMATCH': 'background: #E6F4FA; color: #4A90A4;',
         'DAMAGED': 'background: #FFEEEF; color: #8B4557;',
         'MISSING': 'background: #FFF8E8; color: #A08040;',
-        'OTHER': 'background: #F5F0E8; color: #6B6B6B;'
+        'OTHER': 'background: #F5F0E8; color: #6B6B6B;',
+        'DIFF': 'background: #E6F4FA; color: #4A90A4;',
+        'DAMAGE': 'background: #FFEEEF; color: #8B4557;',
+        'LOCATION_ABNORMAL': 'background: #FFF8E8; color: #A08040;',
+        'INVENTORY_DIFF': 'background: #E6F4FA; color: #4A90A4;'
     };
     return map[type] || 'background: #F5F0E8; color: #6B6B6B;';
 }
 
 function getStatusText(status) {
-    const map = { 'PENDING': '待处理', 'HANDLED': '已处理', 'CANCELLED': '已取消' };
+    const map = { 
+        'PENDING': '待处理', 
+        'HANDLED': '已处理', 
+        'CANCELLED': '已取消',
+        'COMPLETED': '已完成'
+    };
     return map[status] || status;
 }
 
 function getStatusStyle(status) {
     if (status === 'PENDING') return 'background: #FFEEEF; color: #8B4557;';
     if (status === 'HANDLED') return 'background: #E8F8ED; color: #2D5A3D;';
+    if (status === 'COMPLETED') return 'background: #E8F8ED; color: #2D5A3D;';
     return 'background: #F5F0E8; color: #6B6B6B;';
 }
 
