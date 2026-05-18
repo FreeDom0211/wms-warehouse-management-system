@@ -1,59 +1,146 @@
-<div class="page-container">
-    <div class="layui-card">
-        <div class="layui-card-header">
-            <span>绩效管理</span>
-        </div>
-        <div class="layui-card-body">
-            <div style="margin-bottom:15px;">
-                <input type="text" id="startDate" class="layui-input" placeholder="开始日期" style="width:150px;display:inline-block;margin-right:10px;">
-                <input type="text" id="endDate" class="layui-input" placeholder="结束日期" style="width:150px;display:inline-block;margin-right:10px;">
-                <button class="layui-btn layui-btn-sm" onclick="queryPerformance()">查询</button>
-                <button class="layui-btn layui-btn-sm layui-btn-normal" onclick="exportExcel()">导出Excel</button>
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">📊 绩效管理</span>
+        <select class="form-input" style="width: auto; padding: 8px 16px;" onchange="loadPerformance(this.value)">
+            <option value="week">本周</option>
+            <option value="month">本月</option>
+            <option value="quarter">本季度</option>
+        </select>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 24px;">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(145deg, #FFD93D, #FFC107);">🥇</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="topOperator">-</div>
+                    <div class="stat-label">最佳操作员</div>
+                </div>
             </div>
-            <table class="layui-table" id="performanceTable"></table>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(145deg, #667EEA, #5A6FD6);">📈</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="totalCompleted">-</div>
+                    <div class="stat-label">完成任务数</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(145deg, #F093FB, #E17055);">⚡</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="avgEfficiency">-</div>
+                    <div class="stat-label">平均效率</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(145deg, #4FACFE, #00F2FE);">✅</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="accuracy">-</div>
+                    <div class="stat-label">准确率</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>操作员</th>
+                        <th>完成任务</th>
+                        <th>入库数量</th>
+                        <th>出库数量</th>
+                        <th>效率评分</th>
+                        <th>准确率</th>
+                    </tr>
+                </thead>
+                <tbody id="performanceTableBody">
+                    <tr><td colspan="7" style="text-align:center; padding:40px;">加载中...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.06), -4px -4px 8px rgba(255, 255, 255, 0.8);
+    }
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.1);
+    }
+    .stat-value {
+        font-size: 26px;
+        font-weight: 800;
+        color: #3D405B;
+    }
+    .stat-label {
+        font-size: 12px;
+        color: #8B8B8B;
+        font-weight: 600;
+    }
+</style>
+
 <script>
-window.initPerformance = function() {
-    layui.use(['table', 'layer'], function(){
-        var table = layui.table;
-        table.render({
-            elem: '#performanceTable',
-            url: '/api/manager/performance/list',
-            headers: {
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
-            },
-            page: true,
-            cols: [[
-                {field:'rank', title:'排名', width:80},
-                {field:'operatorName', title:'操作员', width:120},
-                {field:'workNo', title:'工号', width:100},
-                {field:'stockInCount', title:'入库次数', width:100},
-                {field:'stockOutCount', title:'出库次数', width:100},
-                {field:'checkCount', title:'盘点次数', width:100},
-                {field:'accuracy', title:'准确率', width:100},
-                {field:'avgProcessTime', title:'平均耗时(分钟)', width:120},
-                {field:'totalScore', title:'综合评分', width:100}
-            ]]
-        });
+(function() {
+    loadPerformance('week');
+})();
+
+function loadPerformance(period) {
+    apiGet('/performance', { period: period }).then(res => {
+        const data = res.data || [];
+        renderPerformanceTable(data);
+        updateStats(data);
+    }).catch(err => {
+        console.error('加载绩效数据失败:', err);
+        document.getElementById('performanceTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">加载失败</td></tr>';
     });
 }
 
-function queryPerformance(){
-    layui.use(['table'], function(){
-        var table = layui.table;
-        table.reload('performanceTable', {
-            where: {
-                startDate: document.getElementById('startDate').value,
-                endDate: document.getElementById('endDate').value
-            }
-        });
-    });
+function renderPerformanceTable(data) {
+    const tbody = document.getElementById('performanceTableBody');
+    if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">暂无绩效数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = data.map((item, index) => {
+        const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
+        const rankBg = index < 3 ? `background: ${rankColors[index]}20; color: ${rankColors[index]}` : '';
+        return `
+            <tr>
+                <td style="font-weight:800; ${rankBg};">${index + 1}</td>
+                <td>${item.userName || '-'}</td>
+                <td>${item.completedTasks || 0}</td>
+                <td>${item.stockInCount || 0}</td>
+                <td>${item.stockOutCount || 0}</td>
+                <td>${item.efficiency || 0}%</td>
+                <td>${item.accuracy || 0}%</td>
+            </tr>
+        `;
+    }).join('');
 }
 
-function exportExcel(){
-    window.location.href = '/api/manager/performance/export?startDate=&endDate=';
+function updateStats(data) {
+    const topOperator = data[0]?.userName || '-';
+    const totalCompleted = data.reduce((sum, item) => sum + (item.completedTasks || 0), 0);
+    const avgEfficiency = data.length > 0 ? Math.round(data.reduce((sum, item) => sum + (item.efficiency || 0), 0) / data.length) : 0;
+    const avgAccuracy = data.length > 0 ? Math.round(data.reduce((sum, item) => sum + (item.accuracy || 0), 0) / data.length) : 0;
+    
+    document.getElementById('topOperator').textContent = topOperator;
+    document.getElementById('totalCompleted').textContent = totalCompleted;
+    document.getElementById('avgEfficiency').textContent = avgEfficiency + '%';
+    document.getElementById('accuracy').textContent = avgAccuracy + '%';
 }
 </script>

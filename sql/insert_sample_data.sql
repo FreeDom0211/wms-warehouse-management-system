@@ -1,0 +1,31 @@
+USE jd_wms;
+
+INSERT INTO inventory (product_id, location_id, batch_no, quantity) VALUES
+(1, 1, '20260501001', 50),
+(1, 2, '20260510002', 30),
+(2, 1, '20260505001', 20),
+(3, 3, '20260508001', 100),
+(4, 4, '20260512001', 80),
+(5, 5, '20260501002', 200),
+(6, 6, '20260503001', 150),
+(7, 7, '20260506001', 500),
+(8, 8, '20260509001', 100),
+(9, 9, '20260511001', 30),
+(10, 10, '20260514001', 15);
+
+INSERT INTO stock_in (stock_in_no, operator_id, product_id, batch_no, location_id, quantity, status) VALUES
+('STKIN20260501001', 3, 1, '20260501001', 1, 50, 'COMPLETED'),
+('STKIN20260510001', 3, 1, '20260510002', 2, 30, 'COMPLETED'),
+('STKIN20260505001', 3, 2, '20260505001', 1, 20, 'COMPLETED'),
+('STKIN20260508001', 3, 3, '20260508001', 3, 100, 'COMPLETED'),
+('STKIN20260512001', 3, 4, '20260512001', 4, 80, 'COMPLETED'),
+('STKIN20260516001', 3, 5, '20260516001', 5, 100, 'PENDING');
+
+INSERT INTO stock_out (stock_out_no, operator_id, order_no, product_id, batch_no, location_id, quantity, status) VALUES
+('STKOUT20260502001', 3, 'ORD20260502001', 1, '20260501001', 1, 10, 'COMPLETED'),
+('STKOUT20260506001', 3, 'ORD20260506001', 3, '20260508001', 3, 20, 'COMPLETED'),
+('STKOUT20260515001', 3, 'ORD20260515001', 5, '20260501002', 5, 50, 'PENDING');
+
+INSERT INTO task (task_type, related_no, operator_id, status, priority) VALUES
+('STOCK_IN', 'STKIN20260516001', 3, 'PENDING', 2),
+('STOCK_OUT', 'STKOUT20260515001', 3, 'PENDING', 2);

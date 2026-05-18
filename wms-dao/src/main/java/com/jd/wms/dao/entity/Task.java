@@ -21,6 +21,8 @@ public class Task implements Serializable {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
+    private String taskNo;
+
     private String taskType;
 
     private String relatedNo;

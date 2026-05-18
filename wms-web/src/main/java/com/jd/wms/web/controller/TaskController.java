@@ -84,7 +84,15 @@ import java.util.Map;
     public Result<Void> updateStatus(@PathVariable Long id, @RequestBody Map<String, String> request) {
         String status = request.get("status");
         taskService.updateTaskStatus(id, status);
-        return Result.success("任务状态更新成");    }
+        return Result.success("任务状态更新成功");
+    }
+
+    @PutMapping("/{id}/assign")
+    public Result<Void> assignTask(@PathVariable Long id, @RequestBody Map<String, Long> request) {
+        Long operatorId = request.get("operatorId");
+        taskService.assignTask(id, operatorId);
+        return Result.success("任务分配成功");
+    }
 
     @GetMapping("/operator/{operatorId}/statistics")
     public Result<Map<String, Object>> getStatistics(@PathVariable Long operatorId) {

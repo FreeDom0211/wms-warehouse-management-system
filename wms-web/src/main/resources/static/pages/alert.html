@@ -1,0 +1,180 @@
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">🔔 预警管理</span>
+        <button class="btn btn-primary" onclick="refreshAlerts()">🔄 刷新</button>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(145deg, #EF5350, #E53935);">🔥</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="criticalCount">-</div>
+                    <div class="stat-label">紧急预警</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(145deg, #FFA726, #FF9800);">⚠️</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="warningCount">-</div>
+                    <div class="stat-label">一般预警</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(145deg, #42A5F5, #1E88E5);">ℹ️</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="infoCount">-</div>
+                    <div class="stat-label">信息提示</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(145deg, #66BB6A, #43A047);">✅</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="handledCount">-</div>
+                    <div class="stat-label">已处理</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>优先级</th>
+                        <th>预警类型</th>
+                        <th>预警内容</th>
+                        <th>关联商品</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="alertTableBody">
+                    <tr><td colspan="7" style="text-align:center; padding:40px;">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.06), -4px -4px 8px rgba(255, 255, 255, 0.8);
+    }
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.1);
+    }
+    .stat-value {
+        font-size: 26px;
+        font-weight: 800;
+        color: #3D405B;
+    }
+    .stat-label {
+        font-size: 12px;
+        color: #8B8B8B;
+        font-weight: 600;
+    }
+</style>
+
+<script>
+(function() {
+    refreshAlerts();
+})();
+
+function refreshAlerts() {
+    apiGet('/alert').then(res => {
+        const data = res.data || { records: [] };
+        renderAlertTable(data.records || []);
+        updateStats(data.records || []);
+    }).catch(err => {
+        console.error('加载预警数据失败:', err);
+        document.getElementById('alertTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">加载失败</td></tr>';
+    });
+}
+
+function renderAlertTable(data) {
+    const tbody = document.getElementById('alertTableBody');
+    if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">暂无预警信息</td></tr>';
+        return;
+    }
+    
+    const priorityMap = {
+        'CRITICAL': { text: '紧急', bg: '#EF5350', color: 'white' },
+        'WARNING': { text: '警告', bg: '#FFA726', color: 'white' },
+        'INFO': { text: '信息', bg: '#42A5F5', color: 'white' }
+    };
+    
+    const typeMap = {
+        'LOW_STOCK': '库存不足',
+        'EXPIRED': '临期预警',
+        'OVER_STOCK': '库存积压',
+        'TASK_OVERDUE': '任务超时'
+    };
+    
+    tbody.innerHTML = data.map(item => {
+        const priority = priorityMap[item.priority] || priorityMap.INFO;
+        const isHandled = item.status === 'HANDLED';
+        return `
+            <tr>
+                <td>
+                    <span style="padding:4px 10px; border-radius:8px; font-size:12px; font-weight:700; background: ${priority.bg}; color: ${priority.color};">
+                        ${priority.text}
+                    </span>
+                </td>
+                <td>${typeMap[item.alertType] || item.alertType}</td>
+                <td>${item.message || '-'}</td>
+                <td>${item.productName || '-'}</td>
+                <td>
+                    <span style="padding:4px 12px; border-radius:12px; font-size:12px; font-weight:600; background: ${isHandled ? '#E8F5E9' : '#FFF3E0'}; color: ${isHandled ? '#2E7D32' : '#E65100'};">
+                        ${isHandled ? '已处理' : '待处理'}
+                    </span>
+                </td>
+                <td>${formatDate(item.createTime)}</td>
+                <td>
+                    ${!isHandled ? `<button class="btn btn-primary" style="padding:4px 10px; font-size:12px;" onclick="handleAlert(${item.id})">处理</button>` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function updateStats(data) {
+    const criticalCount = data.filter(item => item.priority === 'CRITICAL' && item.status !== 'HANDLED').length;
+    const warningCount = data.filter(item => item.priority === 'WARNING' && item.status !== 'HANDLED').length;
+    const infoCount = data.filter(item => item.priority === 'INFO' && item.status !== 'HANDLED').length;
+    const handledCount = data.filter(item => item.status === 'HANDLED').length;
+    
+    document.getElementById('criticalCount').textContent = criticalCount;
+    document.getElementById('warningCount').textContent = warningCount;
+    document.getElementById('infoCount').textContent = infoCount;
+    document.getElementById('handledCount').textContent = handledCount;
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN');
+}
+
+function handleAlert(id) {
+    apiPut('/alert/' + id + '/handle').then(res => {
+        alert('处理成功');
+        refreshAlerts();
+    }).catch(err => {
+        alert('处理失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
+</script>

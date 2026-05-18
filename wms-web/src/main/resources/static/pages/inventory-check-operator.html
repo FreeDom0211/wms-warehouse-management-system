@@ -1,115 +1,254 @@
-<div class="page-container">
-    <div class="layui-card">
-        <div class="layui-card-header">
-            <span>库存盘点</span>
-            <button class="layui-btn layui-btn-sm" id="createCheckBtn">创建盘点任务</button>
+﻿﻿<div class="card">
+    <div class="card-header">
+        <span class="card-title">📦 库存盘点</span>
+        <button class="btn btn-primary" id="createBtn">+ 创建盘点任务</button>
+    </div>
+    <div class="card-body">
+        <div class="table-wrapper">
+            <table class="data-table" id="inventoryTable">
+                <thead>
+                    <tr>
+                        <th>盘点ID</th>
+                        <th>盘点单号</th>
+                        <th>区域</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTableBody"></tbody>
+            </table>
         </div>
-        <div class="layui-card-body">
-            <table class="layui-table" id="checkTable" lay-filter="checkTable"></table>
-        </div>
+        <div class="pagination" id="pagination"></div>
     </div>
 </div>
 
 <script>
-window.initInventoryCheck = function() {
-    layui.use(['table', 'layer'], function(){
-        var table = layui.table;
-        var layer = layui.layer;
-        var currentUserId = 3;
+(function() {
+    loadInventoryData(1);
+})();
 
-        table.render({
-            elem: '#checkTable',
-            url: '/api/check/operator/' + currentUserId,
-            headers: {
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
-            },
-            page: true,
-            cols: [[
-                {field:'id', title:'ID', width:80},
-                {field:'checkNo', title:'盘点单号', width:150},
-                {field:'zone', title:'盘点区域', width:120},
-                {field:'status', title:'状态', width:100},
-                {field:'createTime', title:'创建时间', width:180},
-                {title:'操作', width:150, toolbar:'#checkBar'}
-            ]]
-        });
-
-        table.on('tool(checkTable)', function(obj){
-            if(obj.event === 'detail'){
-                showCheckDetail(obj.data.id);
+function loadInventoryData(page) {
+    const userStr = localStorage.getItem('user');
+    const currentUserId = userStr ? JSON.parse(userStr).id : 3;
+    
+    apiGet('/check/operator/' + currentUserId, { pageNum: page, pageSize: 10 }).then(res => {
+        let records = [];
+        let total = 0;
+        if (res && res.data) {
+            if (Array.isArray(res.data)) {
+                records = res.data;
+                total = records.length;
+            } else if (res.data.records) {
+                records = res.data.records;
+                total = res.data.total;
+            } else if (res.data.records === undefined && res.data.total !== undefined) {
+                records = res.data.records || [];
+                total = res.data.total;
             }
-        });
+        }
+        renderTable(records);
+        renderPagination(page, Math.ceil(total / 10));
+    }).catch(err => {
+        console.error('加载盘点数据失败:', err);
+        renderTable([]);
+        renderPagination(page, 1);
+    });
+}
 
-        document.getElementById('createCheckBtn').onclick = function(){
-            layer.open({
-                title: '创建盘点任务',
-                type: 1,
-                area: ['400px', '250px'],
-                content: `
-                    <div class="layui-form" style="padding:20px;">
-                        <div class="layui-form-item">
-                            <label>盘点区域</label>
-                            <select name="zone" class="layui-input">
-                                <option value="A">A区</option>
-                                <option value="B">B区</option>
-                                <option value="C">C区</option>
-                                <option value="ALL">全库</option>
-                            </select>
-                        </div>
+function renderTable(records) {
+    const tbody = document.getElementById('inventoryTableBody');
+    if (!tbody) return;
+    
+    if (!records || records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px;">暂无盘点数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(item => `
+        <tr>
+            <td>${item.id}</td>
+            <td>${item.checkNo || '-'}</td>
+            <td>${item.zone || '-'}</td>
+            <td>
+                <span style="padding:6px 14px; border-radius:16px; font-weight:700; font-size:13px; ${getStatusStyle(item.status)}">
+                    ${getStatusText(item.status)}
+                </span>
+            </td>
+            <td>${formatDate(item.createTime)}</td>
+            <td>
+                ${item.status === 'PENDING' ? `<button class="btn btn-primary" style="padding:8px 16px; font-size:12px;" onclick="startInventory(${item.id})">开始盘点</button>` : '-'}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function getStatusText(status) {
+    const map = { 'PENDING': '待盘点', 'IN_PROGRESS': '盘点中', 'COMPLETED': '已完成', 'CANCELLED': '已取消' };
+    return map[status] || status;
+}
+
+function getStatusStyle(status) {
+    if (status === 'PENDING') return 'background: #FFEEEF; color: #8B4557;';
+    if (status === 'IN_PROGRESS') return 'background: #E6F4FA; color: #4A90A4;';
+    if (status === 'COMPLETED') return 'background: #E8F8ED; color: #2D5A3D;';
+    return 'background: #F5F0E8; color: #6B6B6B;';
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN');
+}
+
+function renderPagination(currentPage, totalPages) {
+    const pagination = document.getElementById('pagination');
+    if (!pagination || totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="loadInventoryData(${currentPage - 1})">‹</button>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+            html += `<button class="page-btn active">${i}</button>`;
+        } else {
+            html += `<button class="page-btn" onclick="loadInventoryData(${i})">${i}</button>`;
+        }
+    }
+    
+    html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="loadInventoryData(${currentPage + 1})">›</button>`;
+    
+    pagination.innerHTML = html;
+}
+
+function startInventory(id) {
+    apiGet('/check/' + id + '/details').then(res => {
+        const details = res.data;
+        const items = details.items || [];
+        
+        if (items.length === 0) {
+            submitInventoryCheck(id, []);
+            return;
+        }
+        
+        let html = '<div class="modal-overlay active"><div class="modal" style="max-width: 600px;">';
+        html += '<div class="modal-header"><span class="modal-title">执行盘点</span><button class="modal-close" onclick="closeModal()">×</button></div>';
+        html += '<div style="max-height: 400px; overflow-y: auto;">';
+        
+        items.forEach((item, index) => {
+            html += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee;">
+                    <div style="flex: 1;">
+                        <div><strong>${item.productName || item.productCode}</strong></div>
+                        <div style="font-size: 12px; color: #666;">货位: ${item.locationCode}</div>
+                        <div style="font-size: 12px; color: #666;">系统数量: ${item.systemQuantity}</div>
                     </div>
-                `,
-                btn: ['创建', '取消'],
-                yes: function(index){
-                    apiPost('/check/task', {operatorId: currentUserId, zone: 'A'}).then(res => {
-                        layer.msg('盘点任务已创建');
-                        layer.close(index);
-                        table.reload('checkTable');
-                    });
-                }
-            });
-        };
-    });
-}
-
-function showCheckDetail(checkId){
-    apiGet('/check/' + checkId + '/details').then(res => {
-        layer.open({
-            title: '盘点详情',
-            type: 1,
-            area: ['600px', '400px'],
-            content: `
-                <div style="padding:20px;">
-                    <table class="layui-table">
-                        <thead>
-                            <tr><th>货位</th><th>商品</th><th>批次</th><th>系统数量</th><th>实际数量</th></tr>
-                        </thead>
-                        <tbody id="checkItems"></tbody>
-                    </table>
-                    <button class="layui-btn" style="margin-top:15px;" onclick="submitCheck('${checkId}')">提交盘点结果</button>
+                    <div style="width: 100px;">
+                        <input type="number" id="actualQty_${index}" value="${item.systemQuantity}" 
+                               style="width: 80px; padding: 8px; text-align: center;" min="0">
+                        <input type="hidden" id="inventoryId_${index}" value="${item.inventoryId}">
+                    </div>
                 </div>
-            `,
-            success: function(){
-                var items = res.data.items || [];
-                var html = '';
-                items.forEach(item => {
-                    html += `<tr>
-                        <td>${item.locationCode}</td>
-                        <td>${item.productName}</td>
-                        <td>${item.batchNo}</td>
-                        <td>${item.systemQuantity}</td>
-                        <td><input type="number" value="${item.systemQuantity}" class="layui-input" style="width:100px;"></td>
-                    </tr>`;
-                });
-                document.getElementById('checkItems').innerHTML = html;
-            }
+            `;
         });
+        
+        html += '</div>';
+        html += '<div class="modal-footer">';
+        html += `<button class="btn btn-secondary" onclick="closeModal()">取消</button>`;
+        html += `<button class="btn btn-primary" onclick="submitInventoryCheck(${id}, ${items.length})">提交盘点</button>`;
+        html += '</div></div></div>';
+        
+        document.body.innerHTML += html;
+    }).catch(err => {
+        alert('操作失败: ' + (err.response?.data?.msg || '未知错误'));
     });
 }
 
-function submitCheck(checkId){
-    layer.msg('盘点结果已提交');
+function submitInventoryCheck(checkId, itemCount) {
+    const actualQuantities = [];
+    
+    for (let i = 0; i < itemCount; i++) {
+        const inventoryId = document.getElementById('inventoryId_' + i)?.value;
+        const actualQty = document.getElementById('actualQty_' + i)?.value;
+        
+        if (inventoryId) {
+            actualQuantities.push({
+                inventoryId: inventoryId,
+                systemQuantity: 0,
+                actualQuantity: parseInt(actualQty) || 0
+            });
+        }
+    }
+    
+    apiPost('/check/' + checkId + '/submit', actualQuantities).then(res => {
+        alert('盘点完成');
+        closeModal();
+        loadInventoryData(1);
+    }).catch(err => {
+        alert('盘点失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
 }
-</script>
-<script type="text/html" id="checkBar">
-    <a class="layui-btn layui-btn-xs" lay-event="detail">执行盘点</a>
+
+document.addEventListener('click', function(e) {
+    if (e.target.id === 'createBtn') {
+        showCreateModal();
+    }
+});
+
+function showCreateModal() {
+    const existingModals = document.querySelectorAll('.modal-overlay');
+    existingModals.forEach(modal => modal.remove());
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.innerHTML = `
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">创建盘点任务</span>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div>
+                <div class="form-group">
+                    <label class="form-label">区域</label>
+                    <input type="text" class="form-input" id="formZone" placeholder="请输入区域，如A区、B区">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitCreate()">提交</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function closeModal() {
+    document.querySelector('.modal-overlay')?.remove();
+}
+
+function submitCreate() {
+    const zone = document.getElementById('formZone').value;
+    
+    const userStr = localStorage.getItem('user');
+    const currentUserId = userStr ? JSON.parse(userStr).id : 3;
+    
+    if (!zone) {
+        alert('请填写完整信息');
+        return;
+    }
+    
+    apiPost('/check/task', {
+        operatorId: currentUserId,
+        zone: zone
+    }).then(res => {
+        alert('创建成功');
+        closeModal();
+        loadInventoryData(1);
+    }).catch(err => {
+        alert('创建失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
 </script>

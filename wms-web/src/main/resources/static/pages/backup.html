@@ -1,142 +1,182 @@
-<div class="page-container">
-    <div class="layui-card">
-        <div class="layui-card-header">
-            <span>数据备份</span>
-            <button class="layui-btn layui-btn-sm" id="backupBtn">立即备份</button>
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">💾 数据备份</span>
+        <button class="btn btn-primary" onclick="createBackup()">+ 创建备份</button>
+    </div>
+    <div class="card-body">
+        <div class="table-wrapper">
+            <table class="data-table" id="backupTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>备份文件名</th>
+                        <th>备份类型</th>
+                        <th>大小</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="backupTableBody"></tbody>
+            </table>
         </div>
-        <div class="layui-card-body">
-            <table class="layui-table" id="backupTable" lay-filter="backupTable"></table>
-        </div>
+        <div class="pagination" id="pagination"></div>
     </div>
 </div>
 
 <script>
-window.initBackupPage = function() {
-    layui.use(['table', 'layer'], function(){
-        var table = layui.table;
-        var layer = layui.layer;
+(function() {
+    loadBackupData(1);
+})();
 
-        loadBackupList();
-
-        document.getElementById('backupBtn').onclick = function(){
-            layer.load(2);
-            apiPost('/admin/backup/manual', {operatorId: 1}).then(res => {
-                layer.closeAll('loading');
-                if(res.data && res.data.success){
-                    layer.msg('备份成功');
-                    loadBackupList();
-                } else {
-                    layer.msg('备份失败');
-                }
-            }).catch(err => {
-                layer.closeAll('loading');
-                layer.msg('备份失败: ' + (err.response?.data?.msg || err.message || '未知错误'));
-            });
-        };
-
-        function loadBackupList(){
-            table.render({
-                elem: '#backupTable',
-                url: '/api/admin/backup/history?days=30',
-                headers: {
-                    'Authorization': 'Bearer ' + localStorage.getItem('token')
-                },
-                page: true,
-                cols: [[
-                    {field:'id', title:'ID', width:80},
-                    {field:'fileName', title:'备份文件名', width:200},
-                    {field:'fileSize', title:'文件大小', width:120},
-                    {field:'backupTypeLabel', title:'备份类型', width:120},
-                    {field:'status', title:'状态', width:100, templet:function(d){
-                        return '<span class="status-badge ' + d.status + '">' + d.statusLabel + '</span>';
-                    }},
-                    {field:'errorMessage', title:'错误信息', width:200},
-                    {field:'createTime', title:'备份时间', width:180},
-                    {title:'操作', width:180, toolbar:'#backupBar'}
-                ]],
-                id: 'backupTableId'
-            });
+function loadBackupData(page) {
+    apiGet('/backup/list', { pageNum: page, pageSize: 10 }).then(res => {
+        if (!res || !res.data) {
+            renderBackupTable([]);
+            renderBackupPagination(page, 0);
+            return;
         }
-
-        table.on('tool(backupTable)', function(obj){
-            if(obj.event === 'download'){
-                window.location.href = '/api/admin/backup/download/' + obj.data.fileName;
-            } else if(obj.event === 'restore'){
-                showRestoreModal(obj.data.fileName);
-            } else if(obj.event === 'delete'){
-                layer.confirm('确定删除该备份吗？', function(index){
-                    apiDelete('/admin/backup/' + obj.data.id).then(res => {
-                        layer.msg('删除成功');
-                        table.reload('backupTableId');
-                    }).catch(err => {
-                        layer.msg('删除失败');
-                    });
-                    layer.close(index);
-                });
-            }
-        });
+        const pageData = res.data;
+        const records = pageData.records || pageData.list || pageData || [];
+        const total = pageData.total || pageData.count || records.length;
+        renderBackupTable(records);
+        renderBackupPagination(page, Math.ceil(total / 10));
+    }).catch(err => {
+        console.error('加载数据失败:', err);
+        renderBackupTable([]);
+        renderBackupPagination(page, 0);
     });
 }
 
-function showRestoreModal(fileName){
-    layui.use(['layer'], function(){
-        var layer = layui.layer;
-        var verifyCode = '';
-        
-        apiPost('/admin/backup/generate-code').then(res => {
-            verifyCode = res.data;
-            layer.open({
-                title: '数据恢复',
-                type: 1,
-                area: ['500px', '350px'],
-                content: `
-                    <div class="layui-form" style="padding:20px;">
-                        <div class="layui-form-item">
-                            <label class="layui-form-label">验证码</label>
-                            <div class="layui-input-block">
-                                <input type="text" name="verifyCode" class="layui-input" placeholder="请输入验证码">
-                                <div style="color:#f44336;margin-top:5px;font-size:12px;">验证码: ${verifyCode}</div>
-                            </div>
-                        </div>
-                        <div class="layui-form-item">
-                            <label class="layui-form-label">备份文件</label>
-                            <div class="layui-input-block">
-                                <input type="file" id="restoreFile" accept=".sql" style="display:none;">
-                                <button type="button" class="layui-btn" onclick="document.getElementById('restoreFile').click()">选择备份文件</button>
-                                <div id="selectedFile" style="margin-top:10px;color:#666;">${fileName}</div>
-                            </div>
-                        </div>
-                        <div class="layui-form-item" style="color:#f44336;font-size:12px;">
-                            <strong>警告:</strong> 数据恢复将覆盖当前数据库所有数据，请确保已备份！
-                        </div>
-                    </div>
-                `,
-                btn: ['确认恢复', '取消'],
-                yes: function(index, layero){
-                    var code = layero.find('input[name="verifyCode"]').val();
-                    if(!code){
-                        layer.msg('请输入验证码');
-                        return;
-                    }
-                    
-                    layer.close(index);
-                    layer.load(2);
-                    
-                    apiPost('/admin/backup/restore', {fileName: fileName, verifyCode: code}).then(res => {
-                        layer.closeAll('loading');
-                        layer.msg('恢复成功');
-                    }).catch(err => {
-                        layer.closeAll('loading');
-                        layer.msg('恢复失败: ' + (err.response?.data?.msg || '未知错误'));
-                    });
-                }
-            });
-        });
+function renderBackupTable(records) {
+    const tbody = document.getElementById('backupTableBody');
+    if (!tbody) return;
+    
+    if (!records || records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(item => `
+        <tr>
+            <td>${item.id}</td>
+            <td>${item.fileName || '-'}</td>
+            <td>
+                <span style="padding:6px 14px; border-radius:16px; font-weight:700; font-size:13px; background: #E8F4FD; color: #2D5A7D;">
+                    ${item.backupType === 'FULL' ? '完整备份' : '增量备份'}
+                </span>
+            </td>
+            <td>${item.fileSize != null ? (item.fileSize / 1024 / 1024).toFixed(2) + ' MB' : '-'}</td>
+            <td>
+                <span style="padding:6px 14px; border-radius:16px; font-weight:700; font-size:13px; ${getStatusStyle(item.status)}">
+                    ${item.status === 'SUCCESS' ? '成功' : '失败'}
+                </span>
+            </td>
+            <td>${formatDate(item.createTime)}</td>
+            <td>
+                <button class="btn btn-primary" style="padding:6px 12px; font-size:12px; margin-right:6px;" onclick="downloadBackup(${item.id})">下载</button>
+                <button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="deleteBackup(${item.id})">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function getStatusStyle(status) {
+    return status === 'SUCCESS' ? 'background: #E8F8ED; color: #2D5A3D;' : 'background: #FFEEEF; color: #8B4557;';
+}
+
+function formatSize(bytes) {
+    if (!bytes) return '-';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN');
+}
+
+function renderBackupPagination(currentPage, totalPages) {
+    const pagination = document.getElementById('pagination');
+    if (!pagination || totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="loadBackupData(${currentPage - 1})">‹</button>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+            html += `<button class="page-btn active">${i}</button>`;
+        } else {
+            html += `<button class="page-btn" onclick="loadBackupData(${i})">${i}</button>`;
+        }
+    }
+    
+    html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="loadBackupData(${currentPage + 1})">›</button>`;
+    
+    pagination.innerHTML = html;
+}
+
+function createBackup() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.innerHTML = `
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">创建备份</span>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div>
+                <div class="form-group">
+                    <label class="form-label">备份类型</label>
+                    <select class="form-input" id="formBackupType">
+                        <option value="FULL">完整备份</option>
+                        <option value="INCREMENTAL">增量备份</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitCreateBackup()">确认备份</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function closeModal() {
+    document.querySelector('.modal-overlay')?.remove();
+}
+
+function submitCreateBackup() {
+    const backupType = document.getElementById('formBackupType').value;
+    
+    apiPost('/backup', { backupType }).then(res => {
+        alert('备份创建成功');
+        closeModal();
+        loadBackupData(1);
+    }).catch(err => {
+        alert('创建失败: ' + (err.response?.data?.msg || '未知错误'));
     });
 }
-</script>
-<script type="text/html" id="backupBar">
-    <a class="layui-btn layui-btn-xs" lay-event="download">下载</a>
-    <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="restore">恢复</a>
-    <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="delete">删除</a>
+
+function downloadBackup(id) {
+    const token = localStorage.getItem('token');
+    window.open(`/backup/${id}/download?token=${token}`, '_blank');
+}
+
+function deleteBackup(id) {
+    if (!confirm('确定要删除这个备份吗？')) return;
+    
+    apiDelete('/backup/' + id).then(res => {
+        alert('删除成功');
+        loadBackupData(1);
+    }).catch(err => {
+        alert('删除失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
 </script>

@@ -22,6 +22,8 @@ public interface TaskService extends IService<Task> {
 
     boolean updateTaskStatus(Long id, String status);
 
+    boolean assignTask(Long id, Long operatorId);
+
     Map<String, Object> getTaskStatistics(Long operatorId);
 
 }

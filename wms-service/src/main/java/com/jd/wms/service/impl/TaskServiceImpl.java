@@ -75,6 +75,19 @@ public class TaskServiceImpl extends ServiceImpl<TaskMapper, Task> implements Ta
     }
 
     @Override
+    @Transactional
+    public boolean assignTask(Long id, Long operatorId) {
+        Task task = getById(id);
+        if (task == null) {
+            throw new WmsException("任务不存在");
+        }
+        task.setOperatorId(operatorId);
+        task.setStatus("IN_PROGRESS");
+        task.setUpdateTime(new Date());
+        return updateById(task);
+    }
+
+    @Override
     public Map<String, Object> getTaskStatistics(Long operatorId) {
         Map<String, Object> stats = new HashMap<>();
         

@@ -40,26 +40,15 @@ public class BackupServiceImpl extends ServiceImpl<BackupLogMapper, BackupLog> i
     @Transactional
     public boolean autoBackup() {
         log.info("开始执行定时备份...");
-        return executeBackup("AUTO", null);
+        Map<String, Object> result = executeBackup("AUTO", null);
+        return (Boolean) result.get("success");
     }
 
     @Override
     @Transactional
     public Map<String, Object> manualBackup(Long operatorId) {
         log.info("开始执行手动备份...");
-        boolean success = executeBackup("MANUAL", operatorId);
-
-        Map<String, Object> result = new HashMap<>();
-        if (success) {
-            String fileName = generateFileName();
-            result.put("success", true);
-            result.put("fileName", fileName);
-            result.put("message", "备份成功");
-        } else {
-            result.put("success", false);
-            result.put("message", "备份失败");
-        }
-        return result;
+        return executeBackup("MANUAL", operatorId);
     }
 
     @Override
@@ -181,9 +170,13 @@ public class BackupServiceImpl extends ServiceImpl<BackupLogMapper, BackupLog> i
         return code;
     }
 
-    private boolean executeBackup(String backupType, Long operatorId) {
+    @Override
+    @Transactional
+    public Map<String, Object> executeBackup(String backupType, Long operatorId) {
         String fileName = generateFileName();
         Path filePath = Paths.get(backupPath, fileName);
+
+        Map<String, Object> result = new HashMap<>();
 
         try {
             Files.createDirectories(filePath.getParent());
@@ -192,7 +185,7 @@ public class BackupServiceImpl extends ServiceImpl<BackupLogMapper, BackupLog> i
             ProcessBuilder builder = new ProcessBuilder();
 
             if (System.getProperty("os.name").toLowerCase().contains("win")) {
-                builder.command("cmd", "/c", "mysqldump", "-u" + dbUsername, "-p" + dbPassword, databaseName, ">", filePath.toString());
+                builder.command("cmd", "/c", "mysqldump -u" + dbUsername + " -p" + dbPassword + " " + databaseName + " > " + filePath.toString());
             } else {
                 builder.command("sh", "-c", "mysqldump -u" + dbUsername + " -p" + dbPassword + " " + databaseName + " > " + filePath.toString());
             }
@@ -213,6 +206,9 @@ public class BackupServiceImpl extends ServiceImpl<BackupLogMapper, BackupLog> i
                 backupLog.setStatus("SUCCESS");
                 backupLog.setErrorMessage(null);
                 log.info("备份成功: {}", fileName);
+                result.put("success", true);
+                result.put("fileName", fileName);
+                result.put("message", "备份成功");
             } else {
                 backupLog.setStatus("FAILED");
                 BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
@@ -223,10 +219,11 @@ public class BackupServiceImpl extends ServiceImpl<BackupLogMapper, BackupLog> i
                 }
                 backupLog.setErrorMessage(error.toString());
                 log.error("备份失败: {}", error.toString());
+                result.put("success", false);
+                result.put("message", "备份失败: " + error.toString());
             }
 
             save(backupLog);
-            return "SUCCESS".equals(backupLog.getStatus());
 
         } catch (Exception e) {
             log.error("备份异常: {}", e.getMessage());
@@ -239,8 +236,11 @@ public class BackupServiceImpl extends ServiceImpl<BackupLogMapper, BackupLog> i
             backupLog.setErrorMessage(e.getMessage());
             backupLog.setCreateTime(new Date());
             save(backupLog);
-            return false;
+            result.put("success", false);
+            result.put("message", "备份失败: " + e.getMessage());
         }
+
+        return result;
     }
 
     private String generateFileName() {

@@ -82,6 +82,7 @@ public class InventoryCheckServiceImpl extends ServiceImpl<InventoryCheckMapper,
         save(check);
 
         Task task = new Task();
+        task.setTaskNo("TASK" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         task.setTaskType("INVENTORY_CHECK");
         task.setRelatedNo(check.getCheckNo());
         task.setOperatorId(operatorId);

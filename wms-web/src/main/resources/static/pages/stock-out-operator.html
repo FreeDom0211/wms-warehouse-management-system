@@ -1,82 +1,206 @@
-<div class="page-container">
-    <div class="layui-card">
-        <div class="layui-card-header">出库管理</div>
-        <div class="layui-card-body">
-            <div class="layui-form">
-                <div class="layui-form-item">
-                    <label>订单号</label>
-                    <input type="text" id="orderNo" class="layui-input" placeholder="请输入订单号">
-                    <button class="layui-btn" onclick="queryOrder()">查询订单</button>
-                </div>
-            </div>
-            <div id="orderDetail" style="display:none;">
-                <table class="layui-table" id="orderItems"></table>
-                <button class="layui-btn" onclick="createStockOut()">生成出库单</button>
-            </div>
-            <table class="layui-table" id="stockOutTable"></table>
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">📤 出库管理</span>
+        <button class="btn btn-primary" onclick="showCreateModal()">+ 创建出库单</button>
+    </div>
+    <div class="card-body">
+        <div class="table-wrapper">
+            <table class="data-table" id="stockOutTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>出库单号</th>
+                        <th>商品ID</th>
+                        <th>批次号</th>
+                        <th>货位ID</th>
+                        <th>数量</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="stockOutTableBody"></tbody>
+            </table>
         </div>
+        <div class="pagination" id="pagination"></div>
     </div>
 </div>
 
 <script>
-window.initStockOut = function() {
-    layui.use(['table', 'layer'], function(){
-        var table = layui.table;
-        table.render({
-            elem: '#stockOutTable',
-            url: '/api/stock-out/operator/3',
-            headers: {
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
-            },
-            page: true,
-            cols: [[
-                {field:'id', title:'ID', width:80},
-                {field:'stockOutNo', title:'出库单号', width:150},
-                {field:'orderNo', title:'订单号', width:150},
-                {field:'productName', title:'商品', width:180},
-                {field:'batchNo', title:'批次号', width:120},
-                {field:'locationCode', title:'货位', width:100},
-                {field:'quantity', title:'数量', width:80},
-                {field:'status', title:'状态', width:100},
-                {title:'操作', width:120, toolbar:'#stockOutBar'}
-            ]]
-        });
+(function() {
+    loadStockOutData(1);
+})();
 
-        table.on('tool(stockOutTable)', function(obj){
-            if(obj.event === 'complete'){
-                apiPut('/stock-out/' + obj.data.id + '/complete').then(res => {
-                    layer.msg('出库完成');
-                    table.reload('stockOutTable');
-                });
-            }
-        });
+function loadStockOutData(page) {
+    const userStr = localStorage.getItem('user');
+    const currentUserId = userStr ? JSON.parse(userStr).id : 3;
+    
+    apiGet('/stock-out', { pageNum: page, pageSize: 10 }).then(res => {
+        if (!res || !res.data) {
+            renderTable([]);
+            renderPagination(page, 0);
+            return;
+        }
+        const pageData = res.data;
+        const records = pageData.records || pageData.list || [];
+        const total = pageData.total || pageData.count || 0;
+        renderTable(records);
+        renderPagination(page, Math.ceil(total / 10));
+    }).catch(err => {
+        console.error('加载数据失败:', err);
+        renderTable([]);
+        renderPagination(page, 0);
     });
 }
 
-function queryOrder(){
-    var orderNo = document.getElementById('orderNo').value;
-    apiGet('/stock-out/order-detail?orderNo=' + orderNo).then(res => {
-        document.getElementById('orderDetail').style.display = 'block';
-        layui.use(['table'], function(){
-            var table = layui.table;
-            table.render({
-                elem: '#orderItems',
-                data: res.data.items,
-                cols: [[
-                    {field:'productName', title:'商品名称', width:200},
-                    {field:'productCode', title:'商品编码', width:120},
-                    {field:'spec', title:'规格', width:100},
-                    {field:'quantity', title:'数量', width:80}
-                ]]
-            });
-        });
+function renderTable(records) {
+    const tbody = document.getElementById('stockOutTableBody');
+    if (!tbody) return;
+    
+    if (!records || records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px;">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(item => `
+        <tr>
+            <td>${item.id}</td>
+            <td>${item.stockOutNo || '-'}</td>
+            <td>${item.productId}</td>
+            <td>${item.batchNo || '-'}</td>
+            <td>${item.locationId}</td>
+            <td>${item.quantity}</td>
+            <td>
+                <span style="padding:6px 14px; border-radius:16px; font-weight:700; font-size:13px; ${getStatusStyle(item.status)}">
+                    ${getStatusText(item.status)}
+                </span>
+            </td>
+            <td>${formatDate(item.createTime)}</td>
+            <td>
+                ${item.status === 'PENDING' ? `<button class="btn btn-primary" style="padding:8px 16px; font-size:12px;" onclick="completeStockOut(${item.id})">完成出库</button>` : '-'}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function getStatusText(status) {
+    const map = { 'PENDING': '待处理', 'PROCESSING': '处理中', 'COMPLETED': '已完成', 'CANCELLED': '已取消' };
+    return map[status] || status;
+}
+
+function getStatusStyle(status) {
+    if (status === 'PENDING') return 'background: #FFEEEF; color: #8B4557;';
+    if (status === 'PROCESSING') return 'background: #E8F0FF; color: #4A4A9B;';
+    if (status === 'COMPLETED') return 'background: #E8F8ED; color: #2D5A3D;';
+    return 'background: #F5F0E8; color: #6B6B6B;';
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN');
+}
+
+function renderPagination(currentPage, totalPages) {
+    const pagination = document.getElementById('pagination');
+    if (!pagination || totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="loadStockOutData(${currentPage - 1})">‹</button>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+            html += `<button class="page-btn active">${i}</button>`;
+        } else {
+            html += `<button class="page-btn" onclick="loadStockOutData(${i})">${i}</button>`;
+        }
+    }
+    
+    html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="loadStockOutData(${currentPage + 1})">›</button>`;
+    
+    pagination.innerHTML = html;
+}
+
+function completeStockOut(id) {
+    apiPut('/stock-out/' + id + '/complete').then(res => {
+        alert('出库完成');
+        loadStockOutData(1);
+    }).catch(err => {
+        alert('操作失败: ' + (err.response?.data?.msg || '未知错误'));
     });
 }
 
-function createStockOut(){
-    layer.msg('出库单已创建');
+
+
+function showCreateModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.innerHTML = `
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">创建出库单</span>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div>
+                <div class="form-group">
+                    <label class="form-label">商品ID</label>
+                    <input type="number" class="form-input" id="formProductId" placeholder="请输入商品ID">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">批次号</label>
+                    <input type="text" class="form-input" id="formBatchNo" placeholder="请输入批次号">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">货位ID</label>
+                    <input type="number" class="form-input" id="formLocationId" placeholder="请输入货位ID">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">数量</label>
+                    <input type="number" class="form-input" id="formQuantity" placeholder="请输入数量">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitCreate()">提交</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
 }
-</script>
-<script type="text/html" id="stockOutBar">
-    <a class="layui-btn layui-btn-xs" lay-event="complete">完成出库</a>
+
+function closeModal() {
+    document.querySelector('.modal-overlay')?.remove();
+}
+
+function submitCreate() {
+    const productId = document.getElementById('formProductId').value;
+    const batchNo = document.getElementById('formBatchNo').value;
+    const locationId = document.getElementById('formLocationId').value;
+    const quantity = document.getElementById('formQuantity').value;
+    
+    const userStr = localStorage.getItem('user');
+    const currentUserId = userStr ? JSON.parse(userStr).id : 3;
+    
+    if (!productId || !batchNo || !locationId || !quantity) {
+        alert('请填写完整信息');
+        return;
+    }
+    
+    apiPost('/stock-out/task', {
+        operatorId: currentUserId,
+        productId: parseInt(productId),
+        batchNo: batchNo,
+        locationId: parseInt(locationId),
+        quantity: parseInt(quantity)
+    }).then(res => {
+        alert('创建成功');
+        closeModal();
+        loadStockOutData(1);
+    }).catch(err => {
+        alert('创建失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
 </script>

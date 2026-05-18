@@ -1,221 +1,228 @@
-<!DOcTYPE html>
-<html lng="zh-cN">
-<hed>
-    <met chrset="UTF-8">
-    <title>权限管理</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivar.net/npm/lyui@2.9.11/dist/css/lyui.css">
-</hed>
-<body>
-    <div class="lyui-continer" style="pdding: 20px;">
-        <div class="layui-row">
-            <div class="lyui-col-md12">
-                <div class="lyui-crd">
-                    <div class="layui-card-header">
-                        <span class="lyui-bredcrumb">
-                            < href="/index.html">首页</>
-                            < href="#">权限管理</>
-                        </span>
-                        <div class="layui-card-header-right">
-                            <button class="lyui-btn lyui-btn-primry" id="ddbtn">添加权限</button>
-                            <button class="lyui-btn lyui-btn-primry" id="refreshbtn">刷新</button>
-                        </div>
-                    </div>
-                    <div class="lyui-crd-body">
-                        <tble id="permissionTble" ly-filter="permissionTble"></tble>
-                    </div>
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">🔑 权限管理</span>
+        <button class="btn btn-primary" onclick="showAddPermissionModal()">+ 添加权限</button>
+    </div>
+    <div class="card-body">
+        <div class="table-wrapper">
+            <table class="data-table" id="permissionTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>权限编码</th>
+                        <th>权限名称</th>
+                        <th>所属模块</th>
+                        <th>描述</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="permissionTableBody"></tbody>
+            </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+    </div>
+</div>
+
+<script>
+(function() {
+    loadPermissionData(1);
+})();
+
+function loadPermissionData(page) {
+    apiGet('/permission', { pageNum: page, pageSize: 10 }).then(res => {
+        if (!res || !res.data) {
+            renderPermissionTable([]);
+            renderPermissionPagination(page, 0);
+            return;
+        }
+        const pageData = res.data;
+        const records = pageData.records || pageData.list || [];
+        const total = pageData.total || pageData.count || 0;
+        renderPermissionTable(records);
+        renderPermissionPagination(page, Math.ceil(total / 10));
+    }).catch(err => {
+        console.error('加载数据失败:', err);
+        renderPermissionTable([]);
+        renderPermissionPagination(page, 0);
+    });
+}
+
+function renderPermissionTable(records) {
+    const tbody = document.getElementById('permissionTableBody');
+    if (!tbody) return;
+    
+    if (!records || records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(item => `
+        <tr>
+            <td>${item.id}</td>
+            <td>${item.permCode || '-'}</td>
+            <td>${item.permName || '-'}</td>
+            <td>
+                <span style="padding:6px 14px; border-radius:16px; font-weight:700; font-size:13px; background: #E8F4FD; color: #2D5A7D;">
+                    ${item.menuUrl ? '菜单' : '其他'}
+                </span>
+            </td>
+            <td>-</td>
+            <td>${formatDate(item.createTime)}</td>
+            <td>
+                <button class="btn btn-primary" style="padding:6px 12px; font-size:12px; margin-right:6px;" onclick="editPermission(${item.id})">编辑</button>
+                <button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="deletePermission(${item.id})">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN');
+}
+
+function renderPermissionPagination(currentPage, totalPages) {
+    const pagination = document.getElementById('pagination');
+    if (!pagination || totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="loadPermissionData(${currentPage - 1})">‹</button>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+            html += `<button class="page-btn active">${i}</button>`;
+        } else {
+            html += `<button class="page-btn" onclick="loadPermissionData(${i})">${i}</button>`;
+        }
+    }
+    
+    html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="loadPermissionData(${currentPage + 1})">›</button>`;
+    
+    pagination.innerHTML = html;
+}
+
+function showAddPermissionModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.innerHTML = `
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">添加权限</span>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div>
+                <div class="form-group">
+                    <label class="form-label">权限编码</label>
+                    <input type="text" class="form-input" id="formPermissionCode" placeholder="请输入权限编码">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">权限名称</label>
+                    <input type="text" class="form-input" id="formPermissionName" placeholder="请输入权限名称">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">所属模块</label>
+                    <input type="text" class="form-input" id="formModule" placeholder="请输入模块名称">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">描述</label>
+                    <input type="text" class="form-input" id="formDescription" placeholder="请输入描述">
                 </div>
             </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitAddPermission()">添加</button>
+            </div>
         </div>
-    </div>
+    `;
+    document.body.appendChild(modal);
+}
 
-    <script src="https://cdn.jsdelivar.net/npm/lyui@2.9.11/dist/lyui.js"></script>
-    <script src="https://cdn.jsdelivar.net/npm/xios@1.6.7/dist/xios.min.js"></script>
-    <script src="/js/xios.js"></script>
-    <script>
-        layui.use(['tble', 'form', 'layer'], function(){
-            var tble = lyui.tble;
-            var form = layui.form;
-            var layer = lyui.layer;
-            var prentOptions = [];
+function closeModal() {
+    document.querySelector('.modal-overlay')?.remove();
+}
 
-            piGet('/permission/options').then(res => {
-                prentOptions = res.data;
-            });
+function submitAddPermission() {
+    const permissionCode = document.getElementById('formPermissionCode').value;
+    const permissionName = document.getElementById('formPermissionName').value;
+    const module = document.getElementById('formModule').value;
+    const description = document.getElementById('formDescription').value;
+    
+    if (!permissionCode || !permissionName) {
+        alert('请填写必填信息');
+        return;
+    }
+    
+    apiPost('/permission', { permissionCode, permissionName, module, description }).then(res => {
+        alert('添加成功');
+        closeModal();
+        loadPermissionData(1);
+    }).catch(err => {
+        alert('添加失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
 
-            var tbleIns = tble.render({
-                elem: '#permissionTble',
-                url: '/pi/permission',
-                heders: {
-                    'Authorization': 'berer ' + loclStorge.getItem('token')
-                },
-                pge: true,
-                cols: [[
-                    {field:'id', title:'ID', widatah:80, sort:true},
-                    {field:'permcode', title:'权限编码', widatah:150},
-                    {field:'permname', title:'权限名称', widatah:150},
-                    {field:'prentId', title:'父权?, widatah:120, templet:function(d){
-                        if(d.prentId === 0) return '顶级菜单';
-                        var prent = prentOptions.find(p => p.value === d.prentId);
-                        return prent ? prent.label : d.prentId;
-                    }},
-                    {field:'menuUrl', title:'菜单URL', widatah:200},
-                    {field:'sortOrder', title:'排序?, widatah:100},
-                    {field:'creteTime', title:'创建时间', widatah:180},
-                    {title:'操作员', widatah:150, toolbr:'#permissionbr'}
-                ]],
-                id: 'permissionTbleId'
-            });
+function editPermission(id) {
+    apiGet('/permission/' + id).then(res => {
+        const data = res.data;
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay active';
+        modal.innerHTML = `
+            <div class="modal">
+                <div class="modal-header">
+                    <span class="modal-title">编辑权限</span>
+                    <button class="modal-close" onclick="closeModal()">×</button>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label class="form-label">权限名称</label>
+                        <input type="text" class="form-input" id="editPermissionName" value="${data.permissionName || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">所属模块</label>
+                        <input type="text" class="form-input" id="editModule" value="${data.module || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">描述</label>
+                        <input type="text" class="form-input" id="editDescription" value="${data.description || ''}">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    <button class="btn btn-primary" onclick="submitEditPermission(${id})">保存</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    });
+}
 
-            tble.on('tool(permissionTble)', function(obj){
-                var data = obj.data;
-                if(obj.event === 'edit'){
-                    showEditModl(data);
-                } else if(obj.event === 'delete'){
-                    layer.confirm('确定删除该权限吗?, function(index){
-                        piDelete('/permission/' + data.id).then(res => {
-                            layer.msg(res.msg);
-                            tbleIns.relod();
-                        }).ctch(err => {
-                            layer.msg(err.response.data.msg || '删除失败');
-                        });
-                        layer.close(index);
-                    });
-                }
-            });
+function submitEditPermission(id) {
+    apiPut('/permission/' + id, {
+        permissionName: document.getElementById('editPermissionName').value,
+        module: document.getElementById('editModule').value,
+        description: document.getElementById('editDescription').value
+    }).then(res => {
+        alert('修改成功');
+        closeModal();
+        loadPermissionData(1);
+    }).catch(err => {
+        alert('修改失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
 
-            document.getElementbyId('ddbtn').onclick = function(){
-                showddModl();
-            };
-
-            document.getElementbyId('refreshbtn').onclick = function(){
-                tbleIns.relod();
-            };
-
-            function getPrentSelectOptions(selectedvalue){
-                var options = '<option value="0" ' + (selectedvalue === 0 ? 'selected' : '') + '>顶级菜单</option>';
-                prentOptions.forEch(p => {
-                    if(p.prentId === 0){
-                        options += `<option value="${p.value}" ${p.value === selectedvalue ? 'selected' : ''}>${p.label}</option>`;
-                    }
-                });
-                return options;
-            }
-
-            function showddModl(){
-                layer.open({
-                    title: '添加权限',
-                    type: 1,
-                    re: ['500px', '400px'],
-                    content: `
-                        <div class="layui-form" style="pdding: 20px;">
-                            <div class="layui-form-item">
-                                <label class="layui-form-label">权限编码</label>
-                                <div class="layui-input-block">
-                                    <input type="text" name="permcode" required lay-verify="required" placeholder="例如：system" class="layui-input">
-                                </div>
-                            </div>
-                            <div class="layui-form-item">
-                                <label class="layui-form-label">权限名称</label>
-                                <div class="layui-input-block">
-                                    <input type="text" name="permname" required lay-verify="required" placeholder="例如：系统管? class="layui-input">
-                                </div>
-                            </div>
-                            <div class="layui-form-item">
-                                <label class="layui-form-label">父权?/label>
-                                <div class="layui-input-block">
-                                    <select name="prentId" class="layui-input">
-                                        ${getPrentSelectOptions(0)}
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="layui-form-item">
-                                <label class="layui-form-label">菜单URL</label>
-                                <div class="layui-input-block">
-                                    <input type="text" name="menuUrl" placeholder="例如?system" class="layui-input">
-                                </div>
-                            </div>
-                            <div class="layui-form-item">
-                                <label class="layui-form-label">排序?/label>
-                                <div class="layui-input-block">
-                                    <input type="number" name="sortOrder" value="0" class="layui-input">
-                                </div>
-                            </div>
-                        </div>
-                    `,
-                    btn: ['确定', '取消'],
-                    yes: function(index, layero){
-                        var formdata = form.vl('');
-                        piPost('/permission', formdata).then(res => {
-                            layer.msg(res.msg);
-                            tbleIns.relod();
-                            layer.close(index);
-                        }).ctch(err => {
-                            layer.msg(err.response.data.msg || '添加失败');
-                        });
-                    }
-                });
-            }
-
-            function showEditModl(data){
-                layer.open({
-                    title: '编辑权限',
-                    type: 1,
-                    re: ['500px', '400px'],
-                    content: `
-                        <div class="layui-form" style="pdding: 20px;">
-                            <input type="hidden" name="id" value="${data.id}">
-                            <div class="layui-form-item">
-                                <label class="layui-form-label">权限编码</label>
-                                <div class="layui-input-block">
-                                    <input type="text" name="permcode" value="${data.permcode}" required lay-verify="required" class="layui-input">
-                                </div>
-                            </div>
-                            <div class="layui-form-item">
-                                <label class="layui-form-label">权限名称</label>
-                                <div class="layui-input-block">
-                                    <input type="text" name="permname" value="${data.permname}" required lay-verify="required" class="layui-input">
-                                </div>
-                            </div>
-                            <div class="layui-form-item">
-                                <label class="layui-form-label">父权?/label>
-                                <div class="layui-input-block">
-                                    <select name="prentId" class="layui-input">
-                                        ${getPrentSelectOptions(data.prentId)}
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="layui-form-item">
-                                <label class="layui-form-label">菜单URL</label>
-                                <div class="layui-input-block">
-                                    <input type="text" name="menuUrl" value="${data.menuUrl || ''}" class="layui-input">
-                                </div>
-                            </div>
-                            <div class="layui-form-item">
-                                <label class="layui-form-label">排序?/label>
-                                <div class="layui-input-block">
-                                    <input type="number" name="sortOrder" value="${data.sortOrder}" class="layui-input">
-                                </div>
-                            </div>
-                        </div>
-                    `,
-                    btn: ['确定', '取消'],
-                    yes: function(index, layero){
-                        var formdata = form.vl('');
-                        piPut('/permission/' + data.id, formdata).then(res => {
-                            layer.msg(res.msg);
-                            tbleIns.relod();
-                            layer.close(index);
-                        }).ctch(err => {
-                            layer.msg(err.response.data.msg || '更新失败');
-                        });
-                    }
-                });
-            }
-        });
-    </script>
-    <script type="text/html" id="permissionbr">
-        < class="lyui-btn lyui-btn-xs" ly-event="edit">编辑</>
-        < class="lyui-btn lyui-btn-xs lyui-btn-dnger" ly-event="delete">删除</>
-    </script>
-</body>
-</html>
+function deletePermission(id) {
+    if (!confirm('确定要删除这个权限吗？')) return;
+    
+    apiDelete('/permission/' + id).then(res => {
+        alert('删除成功');
+        loadPermissionData(1);
+    }).catch(err => {
+        alert('删除失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
+</script>

@@ -1,111 +1,247 @@
-﻿﻿<div class="page-container">
-    <div class="layui-card">
-        <div class="layui-card-header">
-            <span>角色管理</span>
-            <button class="layui-btn layui-btn-sm" id="addBtn">添加角色</button>
+﻿﻿﻿﻿﻿<div class="card">
+    <div class="card-header">
+        <span class="card-title">🎭 角色管理</span>
+        <button class="btn btn-primary" onclick="showAddRoleModal()">+ 添加角色</button>
+    </div>
+    <div class="card-body">
+        <div class="table-wrapper">
+            <table class="data-table" id="roleTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>角色编码</th>
+                        <th>角色名称</th>
+                        <th>描述</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="roleTableBody"></tbody>
+            </table>
         </div>
-        <div class="layui-card-body">
-            <table class="layui-table" id="roleTable" lay-filter="roleTable"></table>
-        </div>
+        <div class="pagination" id="pagination"></div>
     </div>
 </div>
 
 <script>
-window.initRoleManage = function() {
-    layui.use(['table', 'layer', 'form'], function(){
-        var table = layui.table;
-        var layer = layui.layer;
-        var form = layui.form;
+(function() {
+    loadRoleData(1);
+})();
 
-        table.render({
-            elem: '#roleTable',
-            url: '/api/role',
-            headers: {
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
-            },
-            page: true,
-            cols: [[
-                {field:'id', title:'ID', width:80},
-                {field:'roleCode', title:'角色编码', width:120},
-                {field:'roleName', title:'角色名称', width:120},
-                {field:'description', title:'描述', width:200},
-                {field:'createTime', title:'创建时间', width:180},
-                {title:'操作', width:100, toolbar:'#roleBar'}
-            ]]
-        });
-
-        table.on('tool(roleTable)', function(obj){
-            var data = obj.data;
-            if(obj.event === 'edit'){
-                layer.open({
-                    title: '编辑角色',
-                    type: 1,
-                    area: ['400px', '250px'],
-                    content: `
-                        <div class="layui-form" style="padding:20px;">
-                            <div class="layui-form-item">
-                                <label>角色名称</label>
-                                <input type="text" name="roleName" value="${data.roleName}" class="layui-input">
-                            </div>
-                            <div class="layui-form-item">
-                                <label>描述</label>
-                                <input type="text" name="description" value="${data.description}" class="layui-input">
-                            </div>
-                        </div>
-                    `,
-                    btn: ['保存', '取消'],
-                    yes: function(index){
-                        apiPut('/role/' + data.id, {
-                            roleName: document.querySelector('input[name="roleName"]').value,
-                            description: document.querySelector('input[name="description"]').value
-                        }).then(res => {
-                            layer.msg('修改成功');
-                            layer.close(index);
-                            table.reload('roleTable');
-                        });
-                    }
-                });
-            }
-        });
-
-        document.getElementById('addBtn').onclick = function(){
-            layer.open({
-                title: '添加角色',
-                type: 1,
-                area: ['400px', '300px'],
-                content: `
-                    <div class="layui-form" style="padding:20px;">
-                        <div class="layui-form-item">
-                            <label>角色编码</label>
-                            <input type="text" name="roleCode" class="layui-input">
-                        </div>
-                        <div class="layui-form-item">
-                            <label>角色名称</label>
-                            <input type="text" name="roleName" class="layui-input">
-                        </div>
-                        <div class="layui-form-item">
-                            <label>描述</label>
-                            <input type="text" name="description" class="layui-input">
-                        </div>
-                    </div>
-                `,
-                btn: ['添加', '取消'],
-                yes: function(index){
-                    apiPost('/role', {
-                        roleCode: document.querySelector('input[name="roleCode"]').value,
-                        roleName: document.querySelector('input[name="roleName"]').value,
-                        description: document.querySelector('input[name="description"]').value
-                    }).then(res => {
-                        layer.msg('添加成功');
-                        layer.close(index);
-                        table.reload('roleTable');
-                    });
-                }
-            });
-        };
+function loadRoleData(page) {
+    apiGet('/role', { pageNum: page, pageSize: 10 }).then(res => {
+        const data = res || { data: [], count: 0 };
+        renderRoleTable(data.data || []);
+        renderRolePagination(page, Math.ceil(data.count / 10));
+    }).catch(err => {
+        console.error('加载数据失败:', err);
     });
 }
-</script>
-<script type="text/html" id="roleBar">
-    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+
+function renderRoleTable(records) {
+    const tbody = document.getElementById('roleTableBody');
+    if (!tbody) return;
+    
+    if (!records || records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px;">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(item => `
+        <tr>
+            <td>${item.id}</td>
+            <td>${item.roleCode || '-'}</td>
+            <td>${item.roleName}</td>
+            <td>${item.description || '-'}</td>
+            <td>${formatDate(item.createTime)}</td>
+            <td>
+                <button class="btn btn-primary" style="padding:6px 12px; font-size:12px; margin-right:6px;" onclick="editRole(${item.id})">编辑</button>
+                <button class="btn btn-primary" style="padding:6px 12px; font-size:12px;" onclick="managePermissions(${item.id})">权限管理</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN');
+}
+
+function renderRolePagination(currentPage, totalPages) {
+    const pagination = document.getElementById('pagination');
+    if (!pagination || totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="loadRoleData(${currentPage - 1})">‹</button>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+            html += `<button class="page-btn active">${i}</button>`;
+        } else {
+            html += `<button class="page-btn" onclick="loadRoleData(${i})">${i}</button>`;
+        }
+    }
+    
+    html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="loadRoleData(${currentPage + 1})">›</button>`;
+    
+    pagination.innerHTML = html;
+}
+
+function showAddRoleModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.innerHTML = `
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">添加角色</span>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div>
+                <div class="form-group">
+                    <label class="form-label">角色编码</label>
+                    <input type="text" class="form-input" id="formRoleCode" placeholder="请输入角色编码">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">角色名称</label>
+                    <input type="text" class="form-input" id="formRoleName" placeholder="请输入角色名称">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">描述</label>
+                    <input type="text" class="form-input" id="formDescription" placeholder="请输入描述">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitAddRole()">添加</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function closeModal() {
+    document.querySelector('.modal-overlay')?.remove();
+}
+
+function submitAddRole() {
+    const roleCode = document.getElementById('formRoleCode').value;
+    const roleName = document.getElementById('formRoleName').value;
+    const description = document.getElementById('formDescription').value;
+    
+    if (!roleCode || !roleName) {
+        alert('请填写必填信息');
+        return;
+    }
+    
+    apiPost('/role', { roleCode, roleName, description }).then(res => {
+        alert('添加成功');
+        closeModal();
+        loadRoleData(1);
+    }).catch(err => {
+        alert('添加失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
+
+function editRole(id) {
+    apiGet('/role/' + id).then(res => {
+        const data = res.data;
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay active';
+        modal.innerHTML = `
+            <div class="modal">
+                <div class="modal-header">
+                    <span class="modal-title">编辑角色</span>
+                    <button class="modal-close" onclick="closeModal()">×</button>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label class="form-label">角色名称</label>
+                        <input type="text" class="form-input" id="editRoleName" value="${data.roleName || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">描述</label>
+                        <input type="text" class="form-input" id="editDescription" value="${data.description || ''}">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    <button class="btn btn-primary" onclick="submitEditRole(${id})">保存</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    });
+}
+
+function submitEditRole(id) {
+    apiPut('/role/' + id, {
+        roleName: document.getElementById('editRoleName').value,
+        description: document.getElementById('editDescription').value
+    }).then(res => {
+        alert('修改成功');
+        closeModal();
+        loadRoleData(1);
+    }).catch(err => {
+        alert('修改失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
+
+function managePermissions(roleId) {
+    apiGet('/role/' + roleId + '/permissions').then(res => {
+        const roleData = res.data;
+        apiGet('/permission').then(res => {
+            const permissions = res.data?.records || [];
+            const rolePermissions = roleData.permissions || [];
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay active';
+            modal.style.maxWidth = '700px';
+            
+            const permissionHtml = permissions.map(p => `
+                <label style="display:flex; align-items:center; gap:12px; padding:12px; border-radius:14px; margin-bottom:8px; cursor:pointer; transition:all 0.3s;" onmouseenter="this.style.background='#F5F0E8'" onmouseleave="this.style.background='transparent'">
+                    <input type="checkbox" ${rolePermissions.includes(p.id) ? 'checked' : ''} value="${p.id}" style="width:18px; height:18px; cursor:pointer;">
+                    <div>
+                        <div style="font-weight:700; color:#3D405B;">${p.permissionName}</div>
+                        <div style="font-size:12px; color:#8B8B8B;">${p.permissionCode}</div>
+                    </div>
+                </label>
+            `).join('');
+            
+            modal.innerHTML = `
+                <div class="modal" style="width:90%; max-width:700px;">
+                    <div class="modal-header">
+                        <span class="modal-title">权限管理 - ${roleData.roleName}</span>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <div style="max-height:400px; overflow-y:auto;">
+                        ${permissionHtml}
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                        <button class="btn btn-primary" onclick="submitPermissions(${roleId})">保存权限</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        });
+    });
+}
+
+function submitPermissions(roleId) {
+    const checkboxes = document.querySelectorAll('.modal-overlay.active input[type="checkbox"]');
+    const selectedIds = Array.from(checkboxes)
+        .filter(cb => cb.checked)
+        .map(cb => parseInt(cb.value));
+    
+    apiPut('/role/' + roleId + '/permissions', { permissionIds: selectedIds }).then(res => {
+        alert('权限更新成功');
+        closeModal();
+    }).catch(err => {
+        alert('更新失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
 </script>

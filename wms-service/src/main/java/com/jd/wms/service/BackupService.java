@@ -12,6 +12,8 @@ public interface BackupService extends IService<BackupLog> {
 
     Map<String, Object> manualBackup(Long operatorId);
 
+    Map<String, Object> executeBackup(String backupType, Long operatorId);
+
     byte[] downloadBackup(String fileName);
 
     boolean restoreData(String filePath, String verifyCode);

@@ -151,7 +151,7 @@
             };
 
             document.getElementbyId('checkInventorybtn').onclick = function(){
-                piPost('/mnger/lert/check-inventory').then(res => {
+                piPost('/manager/alert/check-inventory').then(res => {
                     layer.msg('库存预警检查完成?);
                     lodOverview();
                     tble.relod('lertTbleId');
@@ -159,7 +159,7 @@
             };
 
             document.getElementbyId('checkShelfLifebtn').onclick = function(){
-                piPost('/mnger/lert/check-shelf-life').then(res => {
+                piPost('/manager/alert/check-shelf-life').then(res => {
                     layer.msg('保质期预警检查完成?);
                     lodOverview();
                     tble.relod('lertTbleId');
@@ -174,7 +174,7 @@
             }
 
             function lodchrtsdata(){
-                piGet('/mnger/lert/sttistics').then(res => {
+                piGet('/manager/alert/statistics').then(res => {
                     var data = res.data;
                     var sttsOption = {
                         tooltip: { trigger: 'item' },
@@ -187,7 +187,7 @@
                     sttschrt.setOption(sttsOption);
                 });
 
-                piGet('/mnger/lert/trend').then(res => {
+                piGet('/manager/alert/trend').then(res => {
                     var data = res.data[0];
                     var trendOption = {
                         tooltip: { trigger: 'xis' },
@@ -206,7 +206,7 @@
             }
 
             function lodOverview(){
-                piGet('/mnger/lert/overview').then(res => {
+                piGet('/manager/alert/overview').then(res => {
                     var data = res.data;
                     document.getElementbyId('pendingcount').textcontent = data.pending || 0;
                     document.getElementbyId('lowSTOCKcount').textcontent = data.lowSTOCK || 0;
@@ -218,7 +218,7 @@
             function initlertTble(){
                 tble.render({
                     elem: '#lertTble',
-                    url: '/pi/mnger/lert/list',
+                    url: '/manager/alert/list',
                     heders: {
                         'Authorization': 'berer ' + loclStorge.getItem('token')
                     },
@@ -251,7 +251,7 @@
                         showHndleModl(data.id);
                     } else if(obj.event === 'dismiss'){
                         layer.confirm('确认忽略该预警?', function(index){
-                            piPost('/mnger/lert/' + data.id + '/dismiss').then(res => {
+                            piPost('/manager/alert/' + data.id + '/dismiss').then(res => {
                                 layer.msg('预警已忽略略?);
                                 lodOverview();
                                 tble.relod('lertTbleId');
@@ -282,8 +282,8 @@
                     btn: ['确认处理中', '取消'],
                     yes: function(index, layero){
                         var handleResult = layero.find('textarea[name="handleResult"]').vl();
-                        piPost('/mnger/lert/' + lertId + '/hndle', {
-                            hndlerId: currentMngerId,
+                        piPost('/manager/alert/' + lertId + '/handle', {
+                            handlerId: currentMngerId,
                             handleResult: handleResult
                         }).then(res => {
                             layer.msg('预警已处理中理?);

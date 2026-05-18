@@ -1,0 +1,116 @@
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">📝 操作日志</span>
+    </div>
+    <div class="card-body">
+        <div class="table-wrapper">
+            <table class="data-table" id="logTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>操作类型</th>
+                        <th>操作描述</th>
+                        <th>操作人</th>
+                        <th>IP地址</th>
+                        <th>操作时间</th>
+                    </tr>
+                </thead>
+                <tbody id="logTableBody"></tbody>
+            </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+    </div>
+</div>
+
+<script>
+(function() {
+    loadLogData(1);
+})();
+
+function loadLogData(page) {
+    apiGet('/admin/log/list', { pageNum: page, pageSize: 10 }).then(res => {
+        const data = res.data || [];
+        renderLogTable(data);
+        renderLogPagination(page, Math.ceil(data.length / 10));
+    }).catch(err => {
+        console.error('加载数据失败:', err);
+    });
+}
+
+function renderLogTable(records) {
+    const tbody = document.getElementById('logTableBody');
+    if (!tbody) return;
+    
+    if (!records || records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px;">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(item => `
+        <tr>
+            <td>${item.id}</td>
+            <td>
+                <span style="padding:6px 14px; border-radius:16px; font-weight:700; font-size:13px; background: #E8F4FD; color: #2D5A7D;">
+                    ${item.module || '其他'}
+                </span>
+            </td>
+            <td>${item.operation || '-'}</td>
+            <td>${item.operatorName || '-'}</td>
+            <td>${item.operatorIp || '-'}</td>
+            <td>${formatDate(item.createTime)}</td>
+        </tr>
+    `).join('');
+}
+
+function getTypeText(type) {
+    const map = { 
+        'LOGIN': '登录', 
+        'LOGOUT': '退出',
+        'CREATE': '创建',
+        'UPDATE': '修改',
+        'DELETE': '删除',
+        'QUERY': '查询',
+        'EXPORT': '导出',
+        'IMPORT': '导入'
+    };
+    return map[type] || type;
+}
+
+function getTypeStyle(type) {
+    if (type === 'LOGIN') return 'background: #E8F8ED; color: #2D5A3D;';
+    if (type === 'LOGOUT') return 'background: #F5F0E8; color: #6B6B6B;';
+    if (type === 'CREATE') return 'background: #E8F4FD; color: #2D5A7D;';
+    if (type === 'UPDATE') return 'background: #FFF7E6; color: #8B6914;';
+    if (type === 'DELETE') return 'background: #FFEEEF; color: #8B4557;';
+    return 'background: #F5F0E8; color: #6B6B6B;';
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN');
+}
+
+function renderLogPagination(currentPage, totalPages) {
+    const pagination = document.getElementById('pagination');
+    if (!pagination || totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="loadLogData(${currentPage - 1})">‹</button>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+            html += `<button class="page-btn active">${i}</button>`;
+        } else {
+            html += `<button class="page-btn" onclick="loadLogData(${i})">${i}</button>`;
+        }
+    }
+    
+    html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="loadLogData(${currentPage + 1})">›</button>`;
+    
+    pagination.innerHTML = html;
+}
+</script>

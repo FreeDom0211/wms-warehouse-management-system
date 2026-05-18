@@ -9,10 +9,19 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/backup")public class BackupApiController {
+@RequestMapping({"/backup", "/api/backup"})
+public class BackupApiController {
 
     @Autowired
     private BackupService backupService;
+
+    @PostMapping
+    public Result<Map<String, Object>> createBackup(@RequestBody Map<String, Object> request) {
+        String backupType = (String) request.get("backupType");
+        Long operatorId = request.get("operatorId") != null ? Long.parseLong(request.get("operatorId").toString()) : 1L;
+        Map<String, Object> result = backupService.executeBackup(backupType, operatorId);
+        return Result.success(result);
+    }
 
     @GetMapping("/list")    public Result<List<Map<String, Object>>> getBackupList(
             @RequestParam(defaultValue = "1") Integer pageNum,

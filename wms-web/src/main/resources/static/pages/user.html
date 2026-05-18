@@ -1,158 +1,308 @@
-<div class="page-container">
-    <div class="layui-card">
-        <div class="layui-card-header">
-            <span>用户管理</span>
-            <button class="layui-btn layui-btn-sm" id="addbtn">添加用户</button>
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">👥 用户管理</span>
+        <button class="btn btn-primary" onclick="showAddUserModal()">+ 添加用户</button>
+    </div>
+    <div class="card-body">
+        <div class="table-wrapper">
+            <table class="data-table" id="userTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>工号</th>
+                        <th>姓名</th>
+                        <th>手机</th>
+                        <th>邮箱</th>
+                        <th>角色</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody"></tbody>
+            </table>
         </div>
-        <div class="layui-card-body">
-            <table class="layui-table" id="userTable" lay-filter="userTable"></table>
-        </div>
+        <div class="pagination" id="pagination"></div>
     </div>
 </div>
 
 <script>
-window.initUserManage = function() {
-    layui.use(['table', 'layer', 'form'], function(){
-        var table = layui.table;
-        var layer = layui.layer;
-        var form = layui.form;
+function initUserPage() {
+    loadUserData(1);
+}
 
-        table.render({
-            elem: '#userTable',
-            url: '/api/user',
-            headers: {
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
-            },
-            page: true,
-            cols: [[
-                {field:'id', title:'ID', width:80},
-                {field:'workNo', title:'工号', width:120},
-                {field:'name', title:'姓名', width:100},
-                {field:'phone', title:'手机', width:130},
-                {field:'email', title:'邮箱', width:150},
-                {field:'roleCode', title:'角色', width:100},
-                {field:'status', title:'状态', width:80},
-                {field:'createTime', title:'创建时间', width:180},
-                {title:'操作', width:200, toolbar:'#userBar'}
-            ]]
-        });
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initUserPage);
+} else {
+    initUserPage();
+}
 
-        table.on('tool(userTable)', function(obj){
-            var data = obj.data;
-            if(obj.event === 'edit'){
-                layer.open({
-                    title: '编辑用户',
-                    type: 1,
-                    area: ['450px', '400px'],
-                    content: `
-                        <div class="layui-form" style="padding:20px;">
-                            <div class="layui-form-item">
-                                <label>姓名</label>
-                                <input type="text" name="name" value="${data.name}" class="layui-input">
-                            </div>
-                            <div class="layui-form-item">
-                                <label>手机</label>
-                                <input type="text" name="phone" value="${data.phone}" class="layui-input">
-                            </div>
-                            <div class="layui-form-item">
-                                <label>邮箱</label>
-                                <input type="text" name="email" value="${data.email}" class="layui-input">
-                            </div>
-                            <div class="layui-form-item">
-                                <label>角色</label>
-                                <select name="roleCode" class="layui-input">
-                                    <option value="OPERATOR" ${data.roleCode === 'OPERATOR' ? 'selected' : ''}>操作员</option>
-                                    <option value="MANAGER" ${data.roleCode === 'MANAGER' ? 'selected' : ''}>管理员</option>
-                                    <option value="ADMINISTRATOR" ${data.roleCode === 'ADMINISTRATOR' ? 'selected' : ''}>仓储主管</option>
-                                </select>
-                            </div>
-                        </div>
-                    `,
-                    btn: ['保存', '取消'],
-                    yes: function(index){
-                        apiPut('/user/' + data.id, {
-                            name: document.querySelector('input[name="name"]').value,
-                            phone: document.querySelector('input[name="phone"]').value,
-                            email: document.querySelector('input[name="email"]').value,
-                            roleCode: document.querySelector('select[name="roleCode"]').value
-                        }).then(res => {
-                            layer.msg('修改成功');
-                            layer.close(index);
-                            table.reload('userTable');
-                        });
-                    }
-                });
-            } else if(obj.event === 'resetPwd'){
-                layer.prompt({title: '重置密码'}, function(pwd){
-                    apiPut('/user/' + data.id + '/reset-password', {newPassword: pwd}).then(res => {
-                        layer.msg('密码已重置');
-                    });
-                });
-            } else if(obj.event === 'toggleStatus'){
-                var newStatus = data.status === 1 ? 0 : 1;
-                apiPut('/user/' + data.id + '/status', {status: newStatus}).then(res => {
-                    layer.msg('状态已更新');
-                    table.reload('userTable');
-                });
-            }
-        });
-
-        document.getElementById('addbtn').onclick = function(){
-            layer.open({
-                title: '添加用户',
-                type: 1,
-                area: ['450px', '450px'],
-                content: `
-                    <div class="layui-form" style="padding:20px;">
-                        <div class="layui-form-item">
-                            <label>工号</label>
-                            <input type="text" name="workNo" class="layui-input">
-                        </div>
-                        <div class="layui-form-item">
-                            <label>姓名</label>
-                            <input type="text" name="name" class="layui-input">
-                        </div>
-                        <div class="layui-form-item">
-                            <label>密码</label>
-                            <input type="password" name="password" class="layui-input">
-                        </div>
-                        <div class="layui-form-item">
-                            <label>手机</label>
-                            <input type="text" name="phone" class="layui-input">
-                        </div>
-                        <div class="layui-form-item">
-                            <label>角色</label>
-                            <select name="roleCode" class="layui-input">
-                                <option value="OPERATOR">操作员</option>
-                                <option value="MANAGER">管理员</option>
-                                <option value="ADMINISTRATOR">仓储主管</option>
-                            </select>
-                        </div>
-                    </div>
-                `,
-                btn: ['添加', '取消'],
-                yes: function(index){
-                    apiPost('/user', {
-                        workNo: document.querySelector('input[name="workNo"]').value,
-                        name: document.querySelector('input[name="name"]').value,
-                        password: document.querySelector('input[name="password"]').value,
-                        phone: document.querySelector('input[name="phone"]').value,
-                        roleCode: document.querySelector('select[name="roleCode"]').value
-                    }).then(res => {
-                        layer.msg('添加成功');
-                        layer.close(index);
-                        table.reload('userTable');
-                    });
-                }
-            });
-        };
+function loadUserData(page) {
+    apiGet('/user', { pageNum: page, pageSize: 10 }).then(res => {
+        const data = res || { data: [], count: 0 };
+        renderUserTable(data.data || []);
+        renderUserPagination(page, Math.ceil(data.count / 10));
+    }).catch(err => {
+        console.error('加载数据失败:', err);
     });
 }
-</script>
-<script type="text/html" id="userBar">
-    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
-    <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="resetPwd">重置密码</a>
-    <a class="layui-btn layui-btn-xs layui-btn-warning" lay-event="toggleStatus">
-        {{ d.status === 1 ? '禁用' : '启用' }}
-    </a>
+
+function renderUserTable(records) {
+    const tbody = document.getElementById('userTableBody');
+    if (!tbody) return;
+    
+    if (!records || records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px;">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(item => `
+        <tr>
+            <td>${item.id}</td>
+            <td>${item.workNo || '-'}</td>
+            <td>${item.name}</td>
+            <td>${item.phone || '-'}</td>
+            <td>${item.email || '-'}</td>
+            <td>
+                <span style="padding:6px 14px; border-radius:16px; font-weight:700; font-size:13px; ${getRoleStyle(item.roleCode)}">
+                    ${getRoleText(item.roleCode)}
+                </span>
+            </td>
+            <td>
+                <span style="padding:6px 14px; border-radius:16px; font-weight:700; font-size:13px; ${getStatusStyle(item.status)}">
+                    ${item.status === 1 ? '启用' : '禁用'}
+                </span>
+            </td>
+            <td>${formatDate(item.createTime)}</td>
+            <td>
+                <button class="btn btn-primary" style="padding:6px 12px; font-size:12px; margin-right:6px;" onclick="editUser(${item.id})">编辑</button>
+                <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px; margin-right:6px;" onclick="resetPassword(${item.id})">重置密码</button>
+                <button class="btn ${item.status === 1 ? 'btn-danger' : 'btn-primary'}" style="padding:6px 12px; font-size:12px;" onclick="toggleUserStatus(${item.id}, ${item.status})">
+                    ${item.status === 1 ? '禁用' : '启用'}
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function getRoleText(roleCode) {
+    const map = { 'OPERATOR': '操作员', 'MANAGER': '管理员', 'ADMINISTRATOR': '仓储主管' };
+    return map[roleCode] || roleCode;
+}
+
+function getRoleStyle(roleCode) {
+    if (roleCode === 'MANAGER') return 'background: #E8F8ED; color: #2D5A3D;';
+    if (roleCode === 'ADMINISTRATOR') return 'background: #E8F4FD; color: #2D5A7D;';
+    return 'background: #F5F0E8; color: #6B6B6B;';
+}
+
+function getStatusStyle(status) {
+    return status === 1 ? 'background: #E8F8ED; color: #2D5A3D;' : 'background: #FFEEEF; color: #8B4557;';
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN');
+}
+
+function renderUserPagination(currentPage, totalPages) {
+    const pagination = document.getElementById('pagination');
+    if (!pagination || totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="loadUserData(${currentPage - 1})">‹</button>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+            html += `<button class="page-btn active">${i}</button>`;
+        } else {
+            html += `<button class="page-btn" onclick="loadUserData(${i})">${i}</button>`;
+        }
+    }
+    
+    html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="loadUserData(${currentPage + 1})">›</button>`;
+    
+    pagination.innerHTML = html;
+}
+
+function showAddUserModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.innerHTML = `
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">添加用户</span>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div>
+                <div class="form-group">
+                    <label class="form-label">工号</label>
+                    <input type="text" class="form-input" id="formWorkNo" placeholder="请输入工号">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">姓名</label>
+                    <input type="text" class="form-input" id="formName" placeholder="请输入姓名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-input" id="formPassword" placeholder="请输入密码">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">手机</label>
+                    <input type="text" class="form-input" id="formPhone" placeholder="请输入手机">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">角色</label>
+                    <select class="form-input" id="formRoleCode">
+                        <option value="OPERATOR">操作员</option>
+                        <option value="ADMINISTRATOR">仓储主管</option>
+                        <option value="MANAGER">管理员</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitAddUser()">添加</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function closeModal() {
+    document.querySelector('.modal-overlay')?.remove();
+}
+
+function submitAddUser() {
+    const workNo = document.getElementById('formWorkNo').value;
+    const name = document.getElementById('formName').value;
+    const password = document.getElementById('formPassword').value;
+    const phone = document.getElementById('formPhone').value;
+    const roleCode = document.getElementById('formRoleCode').value;
+    
+    if (!workNo || !name || !password) {
+        alert('请填写必填信息');
+        return;
+    }
+    
+    apiPost('/user', {
+        workNo, name, password, phone, roleCode
+    }).then(res => {
+        alert('添加成功');
+        closeModal();
+        loadUserData(1);
+    }).catch(err => {
+        alert('添加失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
+
+function editUser(id) {
+    apiGet('/user/' + id).then(res => {
+        const data = res.data;
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay active';
+        modal.innerHTML = `
+            <div class="modal">
+                <div class="modal-header">
+                    <span class="modal-title">编辑用户</span>
+                    <button class="modal-close" onclick="closeModal()">×</button>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label class="form-label">姓名</label>
+                        <input type="text" class="form-input" id="editName" value="${data.name || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">手机</label>
+                        <input type="text" class="form-input" id="editPhone" value="${data.phone || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">邮箱</label>
+                        <input type="text" class="form-input" id="editEmail" value="${data.email || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">角色</label>
+                        <select class="form-input" id="editRoleCode">
+                            <option value="OPERATOR" ${data.roleCode === 'OPERATOR' ? 'selected' : ''}>操作员</option>
+                            <option value="ADMINISTRATOR" ${data.roleCode === 'ADMINISTRATOR' ? 'selected' : ''}>仓储主管</option>
+                            <option value="MANAGER" ${data.roleCode === 'MANAGER' ? 'selected' : ''}>管理员</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    <button class="btn btn-primary" onclick="submitEditUser(${id})">保存</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    });
+}
+
+function submitEditUser(id) {
+    apiPut('/user/' + id, {
+        name: document.getElementById('editName').value,
+        phone: document.getElementById('editPhone').value,
+        email: document.getElementById('editEmail').value,
+        roleCode: document.getElementById('editRoleCode').value
+    }).then(res => {
+        alert('修改成功');
+        closeModal();
+        loadUserData(1);
+    }).catch(err => {
+        alert('修改失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
+
+function resetPassword(id) {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.innerHTML = `
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">重置密码</span>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div>
+                <div class="form-group">
+                    <label class="form-label">新密码</label>
+                    <input type="password" class="form-input" id="resetPassword" placeholder="请输入新密码">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitResetPassword(${id})">确认重置</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function submitResetPassword(id) {
+    const newPassword = document.getElementById('resetPassword').value;
+    if (!newPassword) {
+        alert('请输入密码');
+        return;
+    }
+    apiPut('/user/' + id + '/reset-password', { newPassword }).then(res => {
+        alert('密码已重置');
+        closeModal();
+    }).catch(err => {
+        alert('重置失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
+
+function toggleUserStatus(id, currentStatus) {
+    const newStatus = currentStatus === 1 ? 0 : 1;
+    apiPut('/user/' + id + '/status', { status: newStatus }).then(res => {
+        alert('状态已更新');
+        loadUserData(1);
+    }).catch(err => {
+        alert('更新失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
 </script>

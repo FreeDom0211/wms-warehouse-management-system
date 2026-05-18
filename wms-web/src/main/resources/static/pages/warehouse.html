@@ -1,132 +1,229 @@
-<div class="page-container">
-    <div class="layui-card">
-        <div class="layui-card-header">
-            <span>仓库管理</span>
-            <button class="layui-btn layui-btn-sm" id="addBtn">添加仓库</button>
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">🏭 仓库管理</span>
+        <button class="btn btn-primary" onclick="showAddWarehouseModal()">+ 添加仓库</button>
+    </div>
+    <div class="card-body">
+        <div class="table-wrapper">
+            <table class="data-table" id="warehouseTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>仓库编码</th>
+                        <th>仓库名称</th>
+                        <th>地址</th>
+                        <th>状态</th>
+                        <th>容量</th>
+                        <th>已用容量</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="warehouseTableBody"></tbody>
+            </table>
         </div>
-        <div class="layui-card-body">
-            <table class="layui-table" id="warehouseTable" lay-filter="warehouseTable"></table>
-        </div>
+        <div class="pagination" id="pagination"></div>
     </div>
 </div>
 
 <script>
-window.initWarehouseManage = function() {
-    layui.use(['table', 'layer', 'form'], function(){
-        var table = layui.table;
-        var layer = layui.layer;
-        var form = layui.form;
+(function() {
+    loadWarehouseData(1);
+})();
 
-        table.render({
-            elem: '#warehouseTable',
-            url: '/api/warehouse',
-            headers: {
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
-            },
-            page: true,
-            cols: [[
-                {field:'id', title:'ID', width:80},
-                {field:'warehouseCode', title:'仓库编码', width:120},
-                {field:'warehouseName', title:'仓库名称', width:150},
-                {field:'address', title:'地址', width:200},
-                {field:'status', title:'状态', width:100},
-                {field:'capacity', title:'容量', width:100},
-                {field:'usedCapacity', title:'已用容量', width:120},
-                {title:'操作', width:100, toolbar:'#warehouseBar'}
-            ]]
-        });
-
-        table.on('tool(warehouseTable)', function(obj){
-            if(obj.event === 'edit'){
-                layer.open({
-                    title: '编辑仓库',
-                    type: 1,
-                    area: ['400px', '350px'],
-                    content: `
-                        <div class="layui-form" style="padding:20px;">
-                            <div class="layui-form-item">
-                                <label>ID</label>
-                                <input type="text" name="id" value="${obj.data.id}" class="layui-input">
-                            </div>
-                            <div class="layui-form-item">
-                                <label>仓库编码</label>
-                                <input type="text" name="warehouseCode" value="${obj.data.warehouseCode}" class="layui-input">
-                            </div>
-                            <div class="layui-form-item">
-                                <label>仓库名称</label>
-                                <input type="text" name="warehouseName" value="${obj.data.warehouseName}" class="layui-input">
-                            </div>
-                            <div class="layui-form-item">
-                                <label>地址</label>
-                                <input type="text" name="address" value="${obj.data.address}" class="layui-input">
-                            </div>
-                            <div class="layui-form-item">
-                                <label>容量</label>
-                                <input type="number" name="capacity" value="${obj.data.capacity}" class="layui-input">
-                            </div>
-                        </div>
-                    `,
-                    btn: ['保存', '取消'],
-                    yes: function(index){
-                        apiPut('/warehouse/' + obj.data.id, {
-                            id: document.querySelector('input[name="id"]').value,
-                            warehouseCode: document.querySelector('input[name="warehouseCode"]').value,
-                            warehouseName: document.querySelector('input[name="warehouseName"]').value,
-                            address: document.querySelector('input[name="address"]').value,
-                            capacity: document.querySelector('input[name="capacity"]').value
-                        }).then(res => {
-                            layer.msg('修改成功');
-                            layer.close(index);
-                            table.reload('warehouseTable');
-                        });
-                    }
-                });
-            }
-        });
-
-        document.getElementById('addBtn').onclick = function(){
-            layer.open({
-                title: '添加仓库',
-                type: 1,
-                area: ['400px', '350px'],
-                content: `
-                    <div class="layui-form" style="padding:20px;">
-                        <div class="layui-form-item">
-                            <label>仓库编码</label>
-                            <input type="text" name="warehouseCode" class="layui-input">
-                        </div>
-                        <div class="layui-form-item">
-                            <label>仓库名称</label>
-                            <input type="text" name="warehouseName" class="layui-input">
-                        </div>
-                        <div class="layui-form-item">
-                            <label>地址</label>
-                            <input type="text" name="address" class="layui-input">
-                        </div>
-                        <div class="layui-form-item">
-                            <label>容量</label>
-                            <input type="number" name="capacity" class="layui-input">
-                        </div>
-                    </div>
-                `,
-                btn: ['添加', '取消'],
-                yes: function(index){
-                    apiPost('/warehouse', {
-                        warehouseCode: document.querySelector('input[name="warehouseCode"]').value,
-                        warehouseName: document.querySelector('input[name="warehouseName"]').value,
-                        address: document.querySelector('input[name="address"]').value,
-                        capacity: document.querySelector('input[name="capacity"]').value
-                    }).then(res => {
-                        layer.msg('添加成功');
-                        layer.close(index);
-                        table.reload('warehouseTable');
-                    });
-                }
-            });
-        };
+function loadWarehouseData(page) {
+    apiGet('/warehouse', { pageNum: page, pageSize: 10 }).then(res => {
+        const data = res || { data: [], count: 0 };
+        renderWarehouseTable(data.data || []);
+        renderWarehousePagination(page, Math.ceil(data.count / 10));
+    }).catch(err => {
+        console.error('加载数据失败:', err);
     });
 }
-</script>
-<script type="text/html" id="warehouseBar">
-    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+
+function renderWarehouseTable(records) {
+    const tbody = document.getElementById('warehouseTableBody');
+    if (!tbody) return;
+    
+    if (!records || records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px;">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(item => `
+        <tr>
+            <td>${item.id}</td>
+            <td>${item.warehouseCode || '-'}</td>
+            <td>${item.warehouseName}</td>
+            <td>${item.address || '-'}</td>
+            <td>
+                <span style="padding:6px 14px; border-radius:16px; font-weight:700; font-size:13px; ${getStatusStyle(item.status)}">
+                    ${item.status === 1 ? '启用' : '禁用'}
+                </span>
+            </td>
+            <td>${item.capacity}</td>
+            <td>${item.usedCapacity || 0}</td>
+            <td>
+                <button class="btn btn-primary" style="padding:6px 12px; font-size:12px; margin-right:6px;" onclick="editWarehouse(${item.id})">编辑</button>
+                <button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="deleteWarehouse(${item.id})">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function getStatusStyle(status) {
+    return status === 1 ? 'background: #E8F8ED; color: #2D5A3D;' : 'background: #FFEEEF; color: #8B4557;';
+}
+
+function renderWarehousePagination(currentPage, totalPages) {
+    const pagination = document.getElementById('pagination');
+    if (!pagination || totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="loadWarehouseData(${currentPage - 1})">‹</button>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+            html += `<button class="page-btn active">${i}</button>`;
+        } else {
+            html += `<button class="page-btn" onclick="loadWarehouseData(${i})">${i}</button>`;
+        }
+    }
+    
+    html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="loadWarehouseData(${currentPage + 1})">›</button>`;
+    
+    pagination.innerHTML = html;
+}
+
+function showAddWarehouseModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.innerHTML = `
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">添加仓库</span>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div>
+                <div class="form-group">
+                    <label class="form-label">仓库编码</label>
+                    <input type="text" class="form-input" id="formWarehouseCode" placeholder="请输入仓库编码">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">仓库名称</label>
+                    <input type="text" class="form-input" id="formWarehouseName" placeholder="请输入仓库名称">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">地址</label>
+                    <input type="text" class="form-input" id="formAddress" placeholder="请输入地址">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">容量</label>
+                    <input type="number" class="form-input" id="formCapacity" placeholder="请输入容量">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitAddWarehouse()">添加</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function closeModal() {
+    document.querySelector('.modal-overlay')?.remove();
+}
+
+function submitAddWarehouse() {
+    const warehouseCode = document.getElementById('formWarehouseCode').value;
+    const warehouseName = document.getElementById('formWarehouseName').value;
+    const address = document.getElementById('formAddress').value;
+    const capacity = document.getElementById('formCapacity').value;
+    
+    if (!warehouseCode || !warehouseName) {
+        alert('请填写必填信息');
+        return;
+    }
+    
+    apiPost('/warehouse', {
+        warehouseCode,
+        warehouseName,
+        address,
+        capacity: capacity ? parseInt(capacity) : 1000
+    }).then(res => {
+        alert('添加成功');
+        closeModal();
+        loadWarehouseData(1);
+    }).catch(err => {
+        alert('添加失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
+
+function editWarehouse(id) {
+    apiGet('/warehouse/' + id).then(res => {
+        const data = res.data;
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay active';
+        modal.innerHTML = `
+            <div class="modal">
+                <div class="modal-header">
+                    <span class="modal-title">编辑仓库</span>
+                    <button class="modal-close" onclick="closeModal()">×</button>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label class="form-label">仓库编码</label>
+                        <input type="text" class="form-input" id="editWarehouseCode" value="${data.warehouseCode || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">仓库名称</label>
+                        <input type="text" class="form-input" id="editWarehouseName" value="${data.warehouseName || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">地址</label>
+                        <input type="text" class="form-input" id="editAddress" value="${data.address || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">容量</label>
+                        <input type="number" class="form-input" id="editCapacity" value="${data.capacity || ''}">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    <button class="btn btn-primary" onclick="submitEditWarehouse(${id})">保存</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    });
+}
+
+function submitEditWarehouse(id) {
+    apiPut('/warehouse/' + id, {
+        warehouseCode: document.getElementById('editWarehouseCode').value,
+        warehouseName: document.getElementById('editWarehouseName').value,
+        address: document.getElementById('editAddress').value,
+        capacity: parseInt(document.getElementById('editCapacity').value)
+    }).then(res => {
+        alert('修改成功');
+        closeModal();
+        loadWarehouseData(1);
+    }).catch(err => {
+        alert('修改失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
+
+function deleteWarehouse(id) {
+    if (!confirm('确定要删除这个仓库吗？')) return;
+    
+    apiDelete('/warehouse/' + id).then(res => {
+        alert('删除成功');
+        loadWarehouseData(1);
+    }).catch(err => {
+        alert('删除失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
 </script>

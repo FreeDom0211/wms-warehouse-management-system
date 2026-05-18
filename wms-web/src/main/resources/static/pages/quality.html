@@ -1,0 +1,261 @@
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">✅ 质量检查</span>
+        <button class="btn btn-primary" onclick="showQualityModal()">+ 质检任务</button>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(145deg, #A8E6CF, #6BCB77);">✅</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="passCount">-</div>
+                    <div class="stat-label">合格</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(145deg, #FFCDD2, #EF9A9A);">❌</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="failCount">-</div>
+                    <div class="stat-label">不合格</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(145deg, #FFF3E0, #FFCC80);">⏳</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="pendingCount">-</div>
+                    <div class="stat-label">待检查</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(145deg, #CE93D8, #BA68C8);">📊</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="passRate">-</div>
+                    <div class="stat-label">合格率</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>商品名称</th>
+                        <th>批次号</th>
+                        <th>检查数量</th>
+                        <th>检查人</th>
+                        <th>状态</th>
+                        <th>检查时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="qualityTableBody">
+                    <tr><td colspan="8" style="text-align:center; padding:40px;">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.06), -4px -4px 8px rgba(255, 255, 255, 0.8);
+    }
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.1);
+    }
+    .stat-value {
+        font-size: 26px;
+        font-weight: 800;
+        color: #3D405B;
+    }
+    .stat-label {
+        font-size: 12px;
+        color: #8B8B8B;
+        font-weight: 600;
+    }
+</style>
+
+<script>
+(function() {
+    loadQualityData();
+})();
+
+function loadQualityData() {
+    apiGet('/quality').then(res => {
+        const data = res.data || { records: [] };
+        renderQualityTable(data.records || []);
+        updateStats(data.records || []);
+    }).catch(err => {
+        console.error('加载质检数据失败:', err);
+        document.getElementById('qualityTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px;">加载失败</td></tr>';
+    });
+}
+
+function renderQualityTable(data) {
+    const tbody = document.getElementById('qualityTableBody');
+    if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px;">暂无质检数据</td></tr>';
+        return;
+    }
+    
+    const statusMap = {
+        'PENDING': { text: '待检查', bg: '#FFF3E0', color: '#E65100' },
+        'PASS': { text: '合格', bg: '#E8F5E9', color: '#2E7D32' },
+        'FAIL': { text: '不合格', bg: '#FFEBEE', color: '#C62828' }
+    };
+    
+    tbody.innerHTML = data.map(item => {
+        const status = statusMap[item.status] || statusMap.PENDING;
+        return `
+            <tr>
+                <td>${item.id}</td>
+                <td>${item.productName || '-'}</td>
+                <td>${item.batchNo || '-'}</td>
+                <td>${item.checkQuantity || 0}</td>
+                <td>${item.checkerName || '-'}</td>
+                <td>
+                    <span style="padding:4px 12px; border-radius:12px; font-size:12px; font-weight:600; background: ${status.bg}; color: ${status.color};">
+                        ${status.text}
+                    </span>
+                </td>
+                <td>${formatDate(item.checkTime)}</td>
+                <td>
+                    <button class="btn btn-primary" style="padding:4px 10px; font-size:12px;" onclick="viewQuality(${item.id})">查看</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function updateStats(data) {
+    const passCount = data.filter(item => item.status === 'PASS').length;
+    const failCount = data.filter(item => item.status === 'FAIL').length;
+    const pendingCount = data.filter(item => item.status === 'PENDING').length;
+    const total = data.length;
+    const passRate = total > 0 ? Math.round((passCount / total) * 100) : 0;
+    
+    document.getElementById('passCount').textContent = passCount;
+    document.getElementById('failCount').textContent = failCount;
+    document.getElementById('pendingCount').textContent = pendingCount;
+    document.getElementById('passRate').textContent = passRate + '%';
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN');
+}
+
+function showQualityModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.innerHTML = `
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">创建质检任务</span>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div>
+                <div class="form-group">
+                    <label class="form-label">商品名称</label>
+                    <input type="text" class="form-input" id="formProductName" placeholder="请输入商品名称">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">批次号</label>
+                    <input type="text" class="form-input" id="formBatchNo" placeholder="请输入批次号">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">检查数量</label>
+                    <input type="number" class="form-input" id="formQuantity" placeholder="请输入检查数量">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitQuality()">创建</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function closeModal() {
+    document.querySelector('.modal-overlay')?.remove();
+}
+
+function submitQuality() {
+    const productName = document.getElementById('formProductName').value;
+    const batchNo = document.getElementById('formBatchNo').value;
+    const quantity = document.getElementById('formQuantity').value;
+    
+    if (!productName || !batchNo) {
+        alert('请填写必填信息');
+        return;
+    }
+    
+    apiPost('/quality', { productName, batchNo, checkQuantity: quantity }).then(res => {
+        alert('创建成功');
+        closeModal();
+        loadQualityData();
+    }).catch(err => {
+        alert('创建失败: ' + (err.response?.data?.msg || '未知错误'));
+    });
+}
+
+function viewQuality(id) {
+    apiGet('/quality/' + id).then(res => {
+        const data = res.data;
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay active';
+        modal.innerHTML = `
+            <div class="modal">
+                <div class="modal-header">
+                    <span class="modal-title">质检详情</span>
+                    <button class="modal-close" onclick="closeModal()">×</button>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label class="form-label">商品名称</label>
+                        <div style="padding:10px; background:#F5F5F5; border-radius:8px;">${data.productName || '-'}</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">批次号</label>
+                        <div style="padding:10px; background:#F5F5F5; border-radius:8px;">${data.batchNo || '-'}</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">检查数量</label>
+                        <div style="padding:10px; background:#F5F5F5; border-radius:8px;">${data.checkQuantity || 0}</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">检查结果</label>
+                        <div style="padding:10px; background:${data.status === 'PASS' ? '#E8F5E9' : data.status === 'FAIL' ? '#FFEBEE' : '#FFF3E0'}; border-radius:8px; color:${data.status === 'PASS' ? '#2E7D32' : data.status === 'FAIL' ? '#C62828' : '#E65100'};">
+                            ${data.status === 'PASS' ? '合格' : data.status === 'FAIL' ? '不合格' : '待检查'}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">备注</label>
+                        <div style="padding:10px; background:#F5F5F5; border-radius:8px;">${data.remark || '-'}</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="closeModal()">关闭</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    });
+}
+</script>

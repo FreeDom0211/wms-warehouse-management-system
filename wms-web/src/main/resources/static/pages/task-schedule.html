@@ -35,9 +35,12 @@ window.initTaskSchedule = function() {
 
         table.render({
             elem: '#pendingTasks',
-            url: '/api/task/status/PENDING',
+            url: '/task',
             headers: {
                 'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            where: {
+                status: 'PENDING'
             },
             cols: [[
                 {field:'id', title:'ID', width:60},
@@ -49,9 +52,12 @@ window.initTaskSchedule = function() {
 
         table.render({
             elem: '#processingTasks',
-            url: '/api/task/status/PROCESSING',
+            url: '/task',
             headers: {
                 'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            where: {
+                status: 'PROCESSING'
             },
             cols: [[
                 {field:'id', title:'ID', width:60},
@@ -63,9 +69,12 @@ window.initTaskSchedule = function() {
 
         table.render({
             elem: '#operatorList',
-            url: '/api/user/role/OPERATOR',
+            url: '/admin/user/list',
             headers: {
                 'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            where: {
+                roleCode: 'OPERATOR'
             },
             cols: [[
                 {field:'id', title:'ID', width:60},
